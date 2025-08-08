@@ -36,7 +36,6 @@ export const WorkspaceController = ({
 
   const displayWorkspace: WorkspaceContext["displayWorkspace"] = useCallback(
     (workspace) => {
-      console.log("workspace", workspace);
       setActiveWorkspace(workspace);
       setPinnedMessageListOpen(false);
     },

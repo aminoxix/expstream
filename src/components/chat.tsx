@@ -1,6 +1,7 @@
 "use client";
 
-import { useStreamChat } from "@/context/StreamChatProvider";
+import { useStreamChat } from "@/context/stream-chat-provider";
+import { WorkspaceController } from "@/context/workspace-controller";
 import { createTokenProvider } from "@/utils/streamClient";
 import { useCallback, useEffect, useState } from "react";
 import type {
@@ -13,22 +14,10 @@ import type {
   Channel as StreamChannel,
   UserResponse,
 } from "stream-chat";
-import {
-  Channel,
-  Chat,
-  LoadingIndicator,
-  MessageInput,
-  MessageInputProps,
-  MessageList,
-  SimpleReactionsList,
-  Thread,
-  ThreadHeader,
-  Window,
-} from "stream-chat-react";
+import { Chat, MessageInputProps } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
-import CustomChannelHeader from "./CustomChannelHeader";
-import { EmptyChannel } from "./EmptyChannel/EmptyChannel";
-import { Sidebar } from "./Sidebar/Sidebar";
+import ChannelContainer from "./channel-container";
+import { Sidebar } from "./sidebar";
 import { ResizablePanel, ResizablePanelGroup } from "./ui/resizable";
 
 export default function MyChat({
@@ -172,49 +161,54 @@ export default function MyChat({
   return (
     <div className="h-screen w-screen overflow-hidden bg-gray-50 text-black">
       <Chat client={client}>
-        <ResizablePanelGroup direction="horizontal" className="flex h-full">
-          <ResizablePanel
-            defaultSize={25}
-            minSize={15}
-            maxSize={35}
-            className="border-r bg-white"
-          >
-            <div className="h-full overflow-y-auto p-4">
-              {/* Sidebar content */}
-              <Sidebar />
-            </div>
-          </ResizablePanel>
-
-          <ResizablePanel className="flex-1 min-w-0">
-            <Channel
-              channel={channel}
-              EmptyStateIndicator={EmptyChannel}
-              LoadingIndicator={LoadingIndicator}
-              ReactionsList={SimpleReactionsList}
-              ThreadHeader={ThreadHeader}
+        <WorkspaceController>
+          <ResizablePanelGroup direction="horizontal" className="flex h-full">
+            <ResizablePanel
+              defaultSize={25}
+              minSize={15}
+              maxSize={35}
+              className="border-r bg-white"
             >
-              <Window>
-                <CustomChannelHeader setChatExpanded={setChatExpanded} />
-                <MessageList />
-                <MessageInput overrideSubmitHandler={submitHandler} />
-              </Window>
-              <Thread />
-            </Channel>
+              <div className="h-full overflow-y-auto p-4">
+                {/* Sidebar content */}
+                <Sidebar />
+              </div>
+            </ResizablePanel>
 
-            {/* <ChannelList filters={filters} sort={sort} options={options} /> */}
-            {/* TypingIndicator={TeamTypingIndicator} */}
-            {/* emojiSearchIndex={SearchIndex} */}
-            {/* <Channel channel={channel} Message={CustomMessage}> */}
+            <ResizablePanel className="flex-1 min-w-0">
+              <ChannelContainer
+                channel={channel}
+                setChatExpanded={setChatExpanded}
+                submitHandler={submitHandler}
+              />
 
-            {/* Create Channel Button */}
-            {/* <button
+              {/* <Channel
+                    channel={channel}
+                    EmptyStateIndicator={EmptyChannel}
+                    LoadingIndicator={LoadingIndicator}
+                    ReactionsList={SimpleReactionsList}
+                    ThreadHeader={ThreadHeader}
+                  >
+                    <Window>
+                      <CustomChannelHeader setChatExpanded={setChatExpanded} />
+                      <MessageList />
+                      <MessageInput overrideSubmitHandler={submitHandler} />
+                    </Window>
+                    <Thread />
+                  </Channel> */}
+
+              {/* TypingIndicator={TeamTypingIndicator} */}
+              {/* emojiSearchIndex={SearchIndex} */}
+
+              {/* Create Channel Button */}
+              {/* <button
         className="absolute top-4 right-12 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
         onClick={() => setIsModalOpen(true)}
       >
         Create Channel
       </button> */}
-            {/* Modal for Channel Creation */}
-            {/* {isModalOpen && (
+              {/* Modal for Channel Creation */}
+              {/* {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Create New Channel</h2>
@@ -255,8 +249,9 @@ export default function MyChat({
           </div>
         </div>
       )} */}
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </WorkspaceController>
       </Chat>
     </div>
   );

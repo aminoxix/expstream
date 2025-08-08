@@ -46,12 +46,14 @@ const SearchResultItem = ({
 
     return (
       <DropdownMenuItem
-        onClick={() => channelByUser({ client, setActiveChannel, user })}
+        onSelect={() => channelByUser({ client, setActiveChannel, user })}
         className={cn("flex items-center gap-2 cursor-pointer", {
           "bg-muted": focusedId === user.id,
         })}
       >
-        <Avatar image={user.image} name={user.name || user.id} />
+        <div className="size-8 justify-center items-center flex">
+          <Avatar image={user.image} name={user.name || user.id} />
+        </div>
         <span className="text-sm">
           {user.name || user.id || "Unknown User"}
         </span>

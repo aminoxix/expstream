@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useChatContext } from "stream-chat-react";
-import { Workspace } from "../../../context/WorkspaceController";
+import { Workspace } from "../../../context/workspace-controller";
 
 type UpsertChannelParams = { name: string; members: string[] };
 
@@ -29,7 +29,7 @@ export type FormErrors = {
 
 type AdminPanelFormContext = FormValues & {
   handleInputChange: ChangeEventHandler<HTMLInputElement>;
-  handleMemberSelect: ChangeEventHandler<HTMLInputElement>;
+  handleMemberSelect: (value: string, checked: boolean) => void;
   handleSubmit: MouseEventHandler<HTMLButtonElement>;
   createChannelType?: ChannelType;
   errors: FormErrors;
@@ -79,9 +79,10 @@ export const AdminPanelForm = ({
 
   const createChannel = useCallback(
     async ({ name, members }: UpsertChannelParams) => {
+      console.log("members", members);
       if (!createChannelType || members.length === 0) return;
 
-      const newChannel = await client.channel(createChannelType, name, {
+      const newChannel = client.channel(createChannelType, name, {
         name,
         members,
         demo: "team",
@@ -151,6 +152,8 @@ export const AdminPanelForm = ({
     [defaultValues.name]
   );
 
+  console.log("ACTION", action);
+
   const handleSubmit: MouseEventHandler<HTMLButtonElement> = useCallback(
     async (event) => {
       event.preventDefault();
@@ -193,22 +196,15 @@ export const AdminPanelForm = ({
     []
   );
 
-  const handleMemberSelect: ChangeEventHandler<HTMLInputElement> = useCallback(
-    (event) => {
-      setMembers((prevMembers) => {
-        const { value } = event.target;
-        if (event.target.checked) {
-          return prevMembers.length ? [...prevMembers, value] : [value];
-        }
-        return prevMembers?.filter((prevUser) => prevUser !== value);
-      });
-    },
-    []
-  );
+  const handleMemberSelect = useCallback((value: string, checked: boolean) => {
+    setMembers((prev) =>
+      checked ? [...prev, value] : prev.filter((id) => id !== value)
+    );
+  }, []);
 
   useEffect(() => {
     setChannelName(defaultValues.name);
-    setMembers(defaultValues.members);
+    // setMembers(defaultValues.members);
   }, [defaultValues, createChannelType]);
 
   return (

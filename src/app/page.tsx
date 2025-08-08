@@ -1,7 +1,8 @@
 "use client";
 
-import MyChat from "@/components/MyChat";
-import { useStreamChat } from "@/context/StreamChatProvider";
+import Chat from "@/components/chat";
+import { useStreamChat } from "@/context/stream-chat-provider";
+import { getUserFromStorage } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { BaseSyntheticEvent, useEffect, useState } from "react";
 import { Channel, ChannelFilters, ChannelSort } from "stream-chat";
@@ -37,21 +38,6 @@ export default function Dashboard() {
     _event?: BaseSyntheticEvent
   ) => {
     setSelectedChannel(newChannel || null);
-  };
-
-  // Check for user in localStorage
-  const getUserFromStorage = () => {
-    if (typeof window === "undefined") return null;
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        return JSON.parse(storedUser);
-      } catch (err) {
-        console.error("Failed to parse stored user:", err);
-        localStorage.removeItem("user");
-      }
-    }
-    return null;
   };
 
   // Load user on mount
@@ -92,7 +78,7 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-gray-50">
       <section className="flex-1">
-        <MyChat
+        <Chat
           userId={user.userId}
           userName={user.fullName || user.userId}
           isStreamer={true}

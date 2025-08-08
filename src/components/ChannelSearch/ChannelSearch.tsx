@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Channel, UserResponse } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
 
-import useDebouncedCallback from "@/hooks/debounce";
+import { useDebouncedCallback } from "@/hooks/debounce";
 import { Input } from "../ui/input";
 import { ResultsDropdown } from "./ResultsDropdown";
 import { channelByUser, ChannelOrUserType, isChannel } from "./utils";

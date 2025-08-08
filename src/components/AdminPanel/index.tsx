@@ -1,2 +1,2 @@
-export {CreateChannel} from './CreateChannel'
-export {EditChannel} from './EditChannel'
+export { CreateChannel } from "./CreateChannel";
+export { EditChannel } from "./EditChannel";

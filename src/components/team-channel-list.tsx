@@ -3,11 +3,11 @@ import React, { PropsWithChildren, useCallback } from "react";
 import {
   useWorkspaceController,
   Workspace,
-} from "../../context/WorkspaceController";
+} from "../context/workspace-controller";
 
 import { PlusCircleIcon } from "@phosphor-icons/react";
 import type { ChannelListMessengerProps } from "stream-chat-react";
-import { Button } from "../ui/button";
+import { Button } from "./ui/button";
 
 export type TeamChannelListProps = ChannelListMessengerProps & {
   type: string;
@@ -19,27 +19,22 @@ const ChannelList = (props: PropsWithChildren<TeamChannelListProps>) => {
   const { displayWorkspace } = useWorkspaceController();
 
   const handleAddChannelClick = useCallback(() => {
-    console.log("type", type);
-    displayWorkspace(`Admin-Admin-Channel-Create__${type}` as Workspace);
+    displayWorkspace(`Admin-Channel-Create__${type}` as Workspace);
   }, [type, displayWorkspace]);
 
   if (error) {
     return type === "team" ? (
-      <div className="team-channel-list">
-        <p className="team-channel-list__message">
-          Connection error, please wait a moment and try again.
-        </p>
-      </div>
+      <p className="text-xs pt-4">
+        Connection error, please wait a moment and try again.
+      </p>
     ) : null;
   }
 
   if (loading) {
     return (
-      <div className="team-channel-list">
-        <p className="team-channel-list__message loading">
-          {type === "team" ? "Channels" : "Messages"} loading....
-        </p>
-      </div>
+      <p className="text-sm">
+        {type === "team" ? "Channels" : "Messages"} loading....
+      </p>
     );
   }
 

@@ -1,12 +1,16 @@
-import { MouseEventHandler } from 'react';
+import { MouseEventHandler } from "react";
+import { Button } from "../ui/button";
 
 type AdminPanelFooterProps = {
   buttonText: string;
   onButtonClick: MouseEventHandler<HTMLButtonElement>;
-}
+};
 
-export const AdminPanelFooter = ({buttonText, onButtonClick}: AdminPanelFooterProps) => (
-  <div className='admin-panel__form-footer' >
-    <button onClick={onButtonClick}>{buttonText}</button>
+export const AdminPanelFooter = ({
+  buttonText,
+  onButtonClick,
+}: AdminPanelFooterProps) => (
+  <div className="flex justify-end mt-4">
+    <Button onClick={onButtonClick}>{buttonText}</Button>
   </div>
-)
+);

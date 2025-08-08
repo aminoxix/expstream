@@ -1,13 +1,16 @@
-import { CloseAdminPanelButton } from './CloseAdminPanelButton';
+import { CloseIcon } from "stream-chat-react";
+import { Button } from "../ui/button";
 
 type AdminPanelHeaderProps = {
   onClose: () => void;
   title: string;
-}
+};
 
-export const AdminPanelHeader = ({onClose, title}: AdminPanelHeaderProps) => (
-  <div className='admin-panel__form-header'>
-    <div className='workspace-header__title workspace-header__block'>{title}</div>
-    <CloseAdminPanelButton onClick={onClose} />
+export const AdminPanelHeader = ({ onClose, title }: AdminPanelHeaderProps) => (
+  <div className="flex p-2 justify-between">
+    <h1 className="font-bold text-xl">{title}</h1>
+    <Button variant="ghost" onClick={onClose}>
+      <CloseIcon />
+    </Button>
   </div>
-)
+);

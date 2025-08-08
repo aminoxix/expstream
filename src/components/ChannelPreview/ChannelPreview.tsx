@@ -8,7 +8,7 @@ import {
 import { DirectMessagingChannelPreview } from "./DirectMessagingChannelPreview";
 import { TeamChannelPreview } from "./TeamChannelPreview";
 
-import { useWorkspaceController } from "../../context/WorkspaceController";
+import { useWorkspaceController } from "../../context/workspace-controller";
 
 type TeamChannelPreviewProps = ChannelPreviewUIComponentProps & {
   type: string;

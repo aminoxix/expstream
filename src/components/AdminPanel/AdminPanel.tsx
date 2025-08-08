@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useChatContext } from "stream-chat-react";
-import { useWorkspaceController } from "../../context/WorkspaceController";
+import { useWorkspaceController } from "../../context/workspace-controller";
 import { AdminPanelForm, FormValues } from "./context/AdminPanelFormContext";
 import { CreateChannel } from "./CreateChannel";
 import { EditChannel } from "./EditChannel";
@@ -16,7 +16,6 @@ export const AdminPanel = () => {
   let defaultFormValues: FormValues = { name: "", members: [] };
   let Form = null;
 
-  console.log("active workspace:", activeWorkspace);
   if (activeWorkspace.match("Channel-Create")) {
     defaultFormValues = {
       members: client.userID ? [client.userID] : [],
@@ -36,7 +35,7 @@ export const AdminPanel = () => {
       onSubmit={onSubmit}
       defaultValues={defaultFormValues}
     >
-      <div className="channel__container">{Form && <Form />}</div>
+      <div className="w-full h-full p-4">{Form && <Form />}</div>
     </AdminPanelForm>
   );
 };

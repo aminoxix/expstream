@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { StreamChatProvider } from "../context/StreamChatProvider";
+import { StreamChatProvider } from "../context/stream-chat-provider";
 import "./globals.css";
 
 const geistSans = Geist({

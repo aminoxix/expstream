@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-export default function useDebouncedCallback(
+export function useDebouncedCallback(
   callback: (...args: any[]) => void,
   delay: number
 ) {
@@ -28,4 +28,15 @@ export default function useDebouncedCallback(
   }, []);
 
   return debouncedFn;
+}
+
+export function useDebounce<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debounced;
 }
