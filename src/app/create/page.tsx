@@ -1,6 +1,6 @@
 "use client";
 
-import { createStreamUser } from "@/utils/action";
+import { createStreamUser, createToken } from "@/utils/action";
 import { useState } from "react";
 
 export type UserObject = {
@@ -37,18 +37,15 @@ export default function CreateStreamUser() {
     setCreationOngoing(true);
     setError(null);
 
-    // Save to localStorage
     try {
-      localStorage.setItem("user", JSON.stringify(formData));
-    } catch (err) {
-      console.error("Failed to save user to localStorage:", err);
-      setError("Failed to save user data.");
-      setCreationOngoing(false);
-      return;
-    }
+      // Generate token for the user
+      const token = await createToken(formData.userId);
 
-    // Create user on Stream
-    try {
+      // Save user and token to localStorage
+      const userData = { ...formData, token };
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      // Create user on Stream
       const userObject: UserObject = {
         userId: formData.userId,
         email: formData.email,
@@ -59,8 +56,8 @@ export default function CreateStreamUser() {
       setCreationOngoing(false);
       window.location.href = "/";
     } catch (err) {
-      console.error("[createStreamUser] Failed to create user:", err);
-      setError("Failed to create user on server.");
+      console.error("Failed to create user or token:", err);
+      setError("Failed to create user or token.");
       setCreationOngoing(false);
     }
   };

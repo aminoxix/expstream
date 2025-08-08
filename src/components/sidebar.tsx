@@ -1,14 +1,15 @@
-import { ChannelList } from "stream-chat-react";
-
-import { ChannelSearch } from "./ChannelSearch/ChannelSearch";
-
-// import { TeamChannelList } from '../TeamChannelList/TeamChannelList';
-// import { ChannelPreview } from '../ChannelPreview/ChannelPreview';
-
 import type { Channel, ChannelFilters } from "stream-chat";
-import { ChannelSort } from "stream-chat";
+import { ChannelSort, Channel as StreamChannel } from "stream-chat";
+import { ChannelList } from "stream-chat-react";
 import { ChannelPreview } from "./ChannelPreview/ChannelPreview";
+import { ChannelSearch } from "./ChannelSearch/ChannelSearch";
 import { TeamChannelList } from "./team-channel-list";
+
+interface SidebarProps {
+  setActiveChannel: React.Dispatch<
+    React.SetStateAction<StreamChannel | undefined>
+  >;
+}
 
 const filters: ChannelFilters[] = [
   { type: "team", demo: "team" },
@@ -25,7 +26,11 @@ const customChannelMessagingFilter = (channels: Channel[]) => {
   return channels.filter((channel) => channel.type === "messaging");
 };
 
-const TeamChannelsList = () => (
+const TeamChannelsList = ({
+  setActiveChannel,
+}: {
+  setActiveChannel: SidebarProps["setActiveChannel"];
+}) => (
   <ChannelList
     channelRenderFilterFn={customChannelTeamFilter}
     filters={filters[0]}
@@ -33,11 +38,21 @@ const TeamChannelsList = () => (
     sort={sort}
     EmptyStateIndicator={EmptyGroupChannelListIndicator}
     List={(listProps) => <TeamChannelList {...listProps} type="team" />}
-    Preview={(previewProps) => <ChannelPreview {...previewProps} type="team" />}
+    Preview={(previewProps) => (
+      <ChannelPreview
+        {...previewProps}
+        type="team"
+        setActiveChannel={setActiveChannel}
+      />
+    )}
   />
 );
 
-const MessagingChannelsList = () => (
+const MessagingChannelsList = ({
+  setActiveChannel,
+}: {
+  setActiveChannel: SidebarProps["setActiveChannel"];
+}) => (
   <ChannelList
     channelRenderFilterFn={customChannelMessagingFilter}
     filters={filters[1]}
@@ -47,17 +62,21 @@ const MessagingChannelsList = () => (
     EmptyStateIndicator={EmptyDMChannelListIndicator}
     List={(listProps) => <TeamChannelList {...listProps} type="messaging" />}
     Preview={(previewProps) => (
-      <ChannelPreview {...previewProps} type="messaging" />
+      <ChannelPreview
+        {...previewProps}
+        type="messaging"
+        setActiveChannel={setActiveChannel}
+      />
     )}
   />
 );
 
-export const Sidebar = () => {
+export const Sidebar = ({ setActiveChannel }: SidebarProps) => {
   return (
     <div className="h-full flex flex-col gap-4 justify-center">
-      <ChannelSearch />
-      <TeamChannelsList />
-      <MessagingChannelsList />
+      <ChannelSearch setActiveChannel={setActiveChannel} />
+      <TeamChannelsList setActiveChannel={setActiveChannel} />
+      <MessagingChannelsList setActiveChannel={setActiveChannel} />
     </div>
   );
 };
@@ -67,6 +86,7 @@ export const EmptyGroupChannelListIndicator = () => (
     There are no group channels. Start by creating some.
   </div>
 );
+
 export const EmptyDMChannelListIndicator = () => (
   <div className="text-xs">
     There are no DM channels. Start by creating some.

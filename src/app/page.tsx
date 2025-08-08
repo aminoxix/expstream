@@ -3,9 +3,10 @@
 import Chat from "@/components/chat";
 import { useStreamChat } from "@/context/stream-chat-provider";
 import { getUserFromStorage } from "@/lib/utils";
+import { createTokenProvider } from "@/utils/streamClient";
 import { redirect } from "next/navigation";
-import { BaseSyntheticEvent, useEffect, useState } from "react";
-import { Channel, ChannelFilters, ChannelSort } from "stream-chat";
+import { useEffect, useState } from "react";
+import { Channel } from "stream-chat";
 
 export default function Dashboard() {
   const client = useStreamChat();
@@ -13,56 +14,61 @@ export default function Dashboard() {
   const [user, setUser] = useState<{
     userId: string;
     fullName?: string;
+    token?: string;
   } | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | undefined>(
+    undefined
+  );
   const [clientError, setClientError] = useState<string | null>(null);
 
-  // Sidebar filters and options
-  const filters: ChannelFilters[] = [
-    { type: "channel" }, // Only team channels
-  ];
-
-  const options = { state: true, watch: true, presence: true, limit: 10 };
-  const sort: ChannelSort = { last_message_at: -1, updated_at: -1 };
-
-  // Mock WorkspaceController for channel creation
-  const displayWorkspace = (workspace: string) => {
-    console.log(`[Dashboard] Displaying workspace: ${workspace}`);
-    // In a real app, this would trigger the channel creation modal
-  };
-
-  // Adapt setSelectedChannel to match ChannelPreviewProps
-  const handleSetActiveChannel = (
-    newChannel?: Channel,
-    _watchers?: { limit?: number; offset?: number },
-    _event?: BaseSyntheticEvent
-  ) => {
-    setSelectedChannel(newChannel || null);
-  };
-
-  // Load user on mount
+  // Load user and connect client
   useEffect(() => {
     const storedUser = getUserFromStorage();
     if (!storedUser) {
-      redirect("/create"); // Redirect to form if no user
+      redirect("/create");
     } else {
       setUser(storedUser);
     }
-  }, []);
 
-  // Log client initialization issues
-  useEffect(() => {
-    if (!client) {
-      console.warn("[Dashboard] StreamChat client is not initialized");
-      setClientError(
-        "Failed to initialize chat client. Please check your Stream API key."
-      );
-    } else {
-      setClientError(null);
-    }
+    if (!client || !storedUser) return;
+
+    const connectClient = async () => {
+      try {
+        const token =
+          storedUser.token || (await createTokenProvider(storedUser.userId)());
+        await client.connectUser(
+          {
+            id: storedUser.userId,
+            name: storedUser.fullName || storedUser.userId,
+            image: storedUser.imageUrl || undefined,
+          },
+          token
+        );
+
+        // Initialize default channel after connection
+        const channel = client.channel("team", `${storedUser.userId}-default`, {
+          members: [storedUser.userId],
+          name: `${storedUser.fullName || storedUser.userId}'s Channel`,
+        });
+        await channel.create();
+        await channel.watch();
+        setSelectedChannel(channel);
+      } catch (err) {
+        console.error(
+          "[Dashboard] Failed to connect client or initialize channel:",
+          err
+        );
+        setClientError("Failed to initialize chat client or channel.");
+      }
+    };
+
+    connectClient();
+
+    return () => {
+      client.disconnectUser();
+    };
   }, [client]);
 
-  // Show loading or error while checking user or client
   if (!user || !client) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -82,8 +88,8 @@ export default function Dashboard() {
           userId={user.userId}
           userName={user.fullName || user.userId}
           isStreamer={true}
-          // setChatExpanded={setChatExpanded}
-          // selectedChannel={selectedChannel}
+          setChatExpanded={setChatExpanded}
+          selectedChannel={selectedChannel}
         />
       </section>
     </div>

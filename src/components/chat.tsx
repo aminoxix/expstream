@@ -2,7 +2,6 @@
 
 import { useStreamChat } from "@/context/stream-chat-provider";
 import { WorkspaceController } from "@/context/workspace-controller";
-import { createTokenProvider } from "@/utils/streamClient";
 import { useCallback, useEffect, useState } from "react";
 import type {
   LocalMessage,
@@ -10,7 +9,12 @@ import type {
   SendMessageOptions,
   Channel as StreamChannel,
 } from "stream-chat";
-import { Chat, MessageInputProps } from "stream-chat-react";
+import {
+  Chat,
+  MessageInputProps,
+  Channel as StreamChannelComponent,
+  useChatContext,
+} from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
 import ChannelContainer from "./channel-container";
 import { Sidebar } from "./sidebar";
@@ -27,94 +31,30 @@ export default function MyChat({
   userName: string;
   isStreamer: boolean;
   setChatExpanded?: (expanded: boolean) => void;
-  selectedChannel?: StreamChannel; // Optional channel passed from parent
+  selectedChannel?: StreamChannel | null;
 }) {
   const client = useStreamChat();
-
-  const [channel, setChannel] = useState<StreamChannel | undefined>(
-    selectedChannel
-  );
+  const { channel: activeChannel } = useChatContext();
+  const [channel, setChannel] = useState<StreamChannel | undefined>(undefined);
   const [customColor, setCustomColor] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
-  // const [isModalOpen, setIsModalOpen] = useState(false);
-  // const [channelName, setChannelName] = useState("");
-  // const [users, setUsers] = useState<UserResponse[]>([]);
 
-  // Initialize chat if no selected channel is provided
+  // Sync channel state with selectedChannel and activeChannel
   useEffect(() => {
-    if (!client) {
-      setError("Chat client not initialized");
-      return;
-    }
-
     if (selectedChannel) {
-      // Use the selected channel from parent
       setChannel(selectedChannel);
-      const storedColor = localStorage.getItem(`color_${userId}`);
-      const newColor = storedColor || createCustomColor();
-      setCustomColor(newColor);
-      localStorage.setItem(`color_${userId}`, newColor);
-      return;
+    } else if (activeChannel) {
+      setChannel(activeChannel);
     }
+  }, [selectedChannel, activeChannel]);
 
-    const initializeChat = async () => {
-      try {
-        const token = createTokenProvider(userId);
-        await client.connectUser({ id: userId, name: userName }, token);
-
-        // Create default channel
-        const chatChannel = client.channel("team", userName.toLowerCase(), {
-          members: [userId],
-        });
-        await chatChannel.create();
-        await chatChannel.watch();
-
-        const storedColor = localStorage.getItem(`color_${userId}`);
-        const newColor = storedColor || createCustomColor();
-        setCustomColor(newColor);
-        localStorage.setItem(`color_${userId}`, newColor);
-        setChannel(chatChannel);
-      } catch (err) {
-        console.error("[MyChat] Initialization error:", err);
-        setError(
-          "Failed to initialize chat: " +
-            (err instanceof Error ? err.message : "Unknown error")
-        );
-      }
-    };
-
-    initializeChat();
-
-    return () => {
-      client.disconnectUser();
-    };
-  }, [client, userId, userName, selectedChannel]);
-
-  // Handle channel creation
-  // const handleCreateChannel = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (!client || !channelName) {
-  //     setError("Channel name is required");
-  //     return;
-  //   }
-
-  //   try {
-  //     const newChannel = client.channel("team", channelName.toLowerCase(), {
-  //       members: [userId],
-  //     });
-  //     await newChannel.create();
-  //     await newChannel.watch();
-  //     setChannel(newChannel);
-  //     setIsModalOpen(false);
-  //     setChannelName("");
-  //   } catch (err) {
-  //     console.error("[MyChat] Failed to create channel:", err);
-  //     setError(
-  //       "Failed to create channel: " +
-  //         (err instanceof Error ? err.message : "Unknown error")
-  //     );
-  //   }
-  // };
+  // Set custom color
+  useEffect(() => {
+    const storedColor = localStorage.getItem(`color_${userId}`);
+    const newColor = storedColor || createCustomColor();
+    setCustomColor(newColor);
+    localStorage.setItem(`color_${userId}`, newColor);
+  }, [userId]);
 
   const submitHandler: MessageInputProps["overrideSubmitHandler"] = useCallback(
     async (params: {
@@ -124,7 +64,11 @@ export default function MyChat({
       sendOptions: SendMessageOptions;
     }) => {
       try {
-        await channel?.sendMessage(
+        const targetChannel = activeChannel || channel;
+        if (!targetChannel) {
+          throw new Error("No active channel selected");
+        }
+        await targetChannel.sendMessage(
           {
             text: params.localMessage.text,
             user_id: params.localMessage.user_id,
@@ -139,7 +83,7 @@ export default function MyChat({
         );
       }
     },
-    [channel, customColor, isStreamer]
+    [channel, activeChannel]
   );
 
   if (error) return <div>Error: {error}</div>;
@@ -157,17 +101,17 @@ export default function MyChat({
               className="border-r bg-white"
             >
               <div className="h-full overflow-y-auto p-4">
-                {/* Sidebar content */}
-                <Sidebar />
+                <Sidebar setActiveChannel={setChannel} />
               </div>
             </ResizablePanel>
-
             <ResizablePanel className="flex-1 min-w-0">
-              <ChannelContainer
-                // channel={channel}
-                setChatExpanded={setChatExpanded}
-                submitHandler={submitHandler}
-              />
+              <StreamChannelComponent channel={channel}>
+                <ChannelContainer
+                  setChatExpanded={setChatExpanded}
+                  submitHandler={submitHandler}
+                  setActiveChannel={setChannel}
+                />
+              </StreamChannelComponent>
             </ResizablePanel>
           </ResizablePanelGroup>
         </WorkspaceController>

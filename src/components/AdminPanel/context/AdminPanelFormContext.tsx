@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { Channel as StreamChannel } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
 import { Workspace } from "../../../context/workspace-controller";
 
@@ -46,7 +47,7 @@ const Context = createContext<AdminPanelFormContext>({
 
 type AdminPanelFormProps = {
   workspace: Workspace;
-  onSubmit: () => void;
+  onSubmit: (newChannel?: StreamChannel) => void;
   defaultValues: FormValues;
 };
 
@@ -79,18 +80,20 @@ export const AdminPanelForm = ({
 
   const createChannel = useCallback(
     async ({ name, members }: UpsertChannelParams) => {
-      console.log("members", members);
-      if (!createChannelType || members.length === 0) return;
+      if (!createChannelType || members.length === 0) return undefined;
 
-      const newChannel = client.channel(createChannelType, name, {
+      const channelId = name
+        ? name.toLowerCase().replace(/\s/g, "-")
+        : undefined;
+      const newChannel = client.channel(createChannelType, channelId, {
         name,
         members,
         demo: "team",
       });
 
       await newChannel.watch();
-
       setActiveChannel(newChannel);
+      return newChannel;
     },
     [createChannelType, setActiveChannel, client]
   );
@@ -103,7 +106,6 @@ export const AdminPanelForm = ({
           { text: `Channel name changed to ${name}` }
         );
       }
-
       if (members?.length) {
         await channel?.addMembers(members);
       }
@@ -118,8 +120,8 @@ export const AdminPanelForm = ({
       values,
     }: {
       values: FormValues;
-      createChannelType?: ChannelType;
       action?: UpsertAction;
+      createChannelType?: ChannelType;
     }): FormErrors | null => {
       let errors: FormErrors = { name: null, members: null };
 
@@ -152,8 +154,6 @@ export const AdminPanelForm = ({
     [defaultValues.name]
   );
 
-  console.log("ACTION", action);
-
   const handleSubmit: MouseEventHandler<HTMLButtonElement> = useCallback(
     async (event) => {
       event.preventDefault();
@@ -169,11 +169,13 @@ export const AdminPanelForm = ({
       }
 
       try {
-        if (action === "create") await createChannel({ name, members });
+        let newChannel: StreamChannel | undefined;
+        if (action === "create")
+          newChannel = await createChannel({ name, members });
         if (action === "update") await updateChannel({ name, members });
-        onSubmit();
+        onSubmit(newChannel);
       } catch (err) {
-        console.error(err);
+        console.error("[AdminPanelForm] Error:", err);
       }
     },
     [
@@ -204,7 +206,6 @@ export const AdminPanelForm = ({
 
   useEffect(() => {
     setChannelName(defaultValues.name);
-    // setMembers(defaultValues.members);
   }, [defaultValues, createChannelType]);
 
   return (

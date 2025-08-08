@@ -1,30 +1,34 @@
 import clsx from "clsx";
 import { useCallback } from "react";
+import { Channel } from "stream-chat";
 import {
   ChannelPreviewUIComponentProps,
   useChatContext,
 } from "stream-chat-react";
-
+import { useWorkspaceController } from "../../context/workspace-controller";
+import { Button } from "../ui/button";
 import { DirectMessagingChannelPreview } from "./DirectMessagingChannelPreview";
 import { TeamChannelPreview } from "./TeamChannelPreview";
 
-import { useWorkspaceController } from "../../context/workspace-controller";
-import { Button } from "../ui/button";
-
 type TeamChannelPreviewProps = ChannelPreviewUIComponentProps & {
   type: string;
+  setActiveChannel?: (channel: Channel | undefined) => void;
 };
 
-export const ChannelPreview = ({ channel, type }: TeamChannelPreviewProps) => {
-  const { channel: activeChannel, setActiveChannel } = useChatContext();
+export const ChannelPreview = ({
+  channel,
+  type,
+  setActiveChannel,
+}: TeamChannelPreviewProps) => {
+  const { channel: activeChannel, setActiveChannel: setContextActiveChannel } =
+    useChatContext();
   const { displayWorkspace } = useWorkspaceController();
 
   const handleClick = useCallback(() => {
     displayWorkspace("Chat");
-    if (setActiveChannel) {
-      setActiveChannel(channel);
-    }
-  }, [channel, displayWorkspace, setActiveChannel]);
+    setContextActiveChannel(channel);
+    setActiveChannel?.(channel);
+  }, [channel, displayWorkspace, setContextActiveChannel, setActiveChannel]);
 
   return (
     <Button

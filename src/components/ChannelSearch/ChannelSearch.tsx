@@ -1,24 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
-
-import type { Channel, UserResponse } from "stream-chat";
-import { useChatContext } from "stream-chat-react";
-
 import { useDebouncedCallback } from "@/hooks/debounce";
+import { useCallback, useEffect, useState } from "react";
+import type { Channel as StreamChannel, UserResponse } from "stream-chat";
+import { useChatContext } from "stream-chat-react";
 import { Input } from "../ui/input";
 import { ResultsDropdown } from "./ResultsDropdown";
 import { channelByUser, ChannelOrUserType, isChannel } from "./utils";
 
-export const ChannelSearch = () => {
-  const { client, setActiveChannel } = useChatContext();
+interface ChannelSearchProps {
+  setActiveChannel: React.Dispatch<
+    React.SetStateAction<StreamChannel | undefined>
+  >;
+}
 
+export const ChannelSearch = ({ setActiveChannel }: ChannelSearchProps) => {
+  const { client, setActiveChannel: setContextActiveChannel } =
+    useChatContext();
   const [allChannels, setAllChannels] = useState<
     ConcatArray<ChannelOrUserType> | undefined
   >();
-  const [teamChannels, setTeamChannels] = useState<Channel[] | undefined>();
+  const [teamChannels, setTeamChannels] = useState<
+    StreamChannel[] | undefined
+  >();
   const [directChannels, setDirectChannels] = useState<
     UserResponse[] | undefined
   >();
-
   const [focused, setFocused] = useState<number>();
   const [focusedId, setFocusedId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,23 +43,21 @@ export const ChannelSearch = () => {
         });
       } else if (event.key === "Enter") {
         event.preventDefault();
-
         if (allChannels !== undefined && focused !== undefined) {
           const channelToCheck = allChannels[focused];
-
           if (isChannel(channelToCheck)) {
+            setContextActiveChannel(channelToCheck);
             setActiveChannel(channelToCheck);
           } else {
             channelByUser({ client, setActiveChannel, user: channelToCheck });
           }
         }
-
         setFocused(undefined);
         setFocusedId("");
         setQuery("");
       }
     },
-    [allChannels, client, focused, setActiveChannel] // eslint-disable-line react-hooks/exhaustive-deps
+    [allChannels, client, focused, setContextActiveChannel, setActiveChannel]
   );
 
   useEffect(() => {
@@ -77,8 +80,9 @@ export const ChannelSearch = () => {
     }
   }, [allChannels, focused]);
 
-  const setChannel = (channel: Channel) => {
+  const setChannel = (channel: StreamChannel) => {
     setQuery("");
+    setContextActiveChannel(channel);
     setActiveChannel(channel);
   };
 
@@ -92,13 +96,11 @@ export const ChannelSearch = () => {
         {},
         { limit: 5 }
       );
-
       const userResponse = client.queryUsers(
         { name: { $autocomplete: text } },
         { id: 1 },
         { limit: 5 }
       );
-
       const [channels, { users }] = await Promise.all([
         channelResponse,
         userResponse,
@@ -110,7 +112,6 @@ export const ChannelSearch = () => {
     } catch (event) {
       setQuery("");
     }
-
     setLoading(false);
   };
 
@@ -118,12 +119,10 @@ export const ChannelSearch = () => {
 
   const onSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     event.preventDefault();
-
     setLoading(true);
     setFocused(undefined);
     setQuery(event.target.value);
     if (!event.target.value) return;
-
     getChannelsDebounce(event.target.value);
   };
 
