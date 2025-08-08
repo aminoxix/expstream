@@ -56,7 +56,7 @@ export const Sidebar = () => {
   return (
     <div className="h-full flex flex-col gap-4 justify-center">
       <ChannelSearch />
-      {/* <TeamChannelsList /> */}
+      <TeamChannelsList />
       <MessagingChannelsList />
     </div>
   );

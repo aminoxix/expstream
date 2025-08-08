@@ -26,6 +26,8 @@ type Props = {
 export const channelByUser = async (props: Props) => {
   const { client, setActiveChannel, user } = props;
 
+  console.log("user", user);
+
   const filters: ChannelFilters = {
     type: "messaging",
     member_count: 2,
@@ -35,6 +37,7 @@ export const channelByUser = async (props: Props) => {
   const [existingChannel] = await client.queryChannels(filters);
 
   if (existingChannel) {
+    console.log("existingChannel", existingChannel);
     return setActiveChannel(existingChannel);
   }
 

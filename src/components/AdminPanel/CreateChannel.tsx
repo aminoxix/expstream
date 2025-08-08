@@ -12,7 +12,7 @@ export const CreateChannel = () => {
     useAdminPanelFormState();
 
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full flex flex-col gap-4">
       <AdminPanelHeader
         onClose={closeAdminPanel}
         title={

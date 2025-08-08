@@ -10,7 +10,7 @@ export const AdminPanelFooter = ({
   buttonText,
   onButtonClick,
 }: AdminPanelFooterProps) => (
-  <div className="flex justify-end mt-4">
+  <div className="flex justify-end">
     <Button onClick={onButtonClick}>{buttonText}</Button>
   </div>
 );

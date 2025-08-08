@@ -9,6 +9,7 @@ import { DirectMessagingChannelPreview } from "./DirectMessagingChannelPreview";
 import { TeamChannelPreview } from "./TeamChannelPreview";
 
 import { useWorkspaceController } from "../../context/workspace-controller";
+import { Button } from "../ui/button";
 
 type TeamChannelPreviewProps = ChannelPreviewUIComponentProps & {
   type: string;
@@ -26,10 +27,12 @@ export const ChannelPreview = ({ channel, type }: TeamChannelPreviewProps) => {
   }, [channel, displayWorkspace, setActiveChannel]);
 
   return (
-    <button
-      className={clsx("channel-preview", {
-        selected: channel?.id === activeChannel?.id,
-      })}
+    <Button
+      variant="ghost"
+      className={clsx(
+        "flex justify-start",
+        channel?.id === activeChannel?.id ? "font-bold" : "font-normal"
+      )}
       onClick={handleClick}
     >
       {type === "team" ? (
@@ -43,6 +46,6 @@ export const ChannelPreview = ({ channel, type }: TeamChannelPreviewProps) => {
       ) : (
         <DirectMessagingChannelPreview channel={channel} />
       )}
-    </button>
+    </Button>
   );
 };

@@ -1,12 +1,8 @@
-import {
-  LocalMessage,
-  Message,
-  SendMessageOptions,
-  Channel as StreamChannel, // Backend channel type
-} from "stream-chat";
+import { LocalMessage, Message, SendMessageOptions } from "stream-chat";
+//   Channel as StreamChannel,
 
 import {
-  Channel as ChannelUI, // React UI component
+  Channel,
   LoadingIndicator,
   MessageInput,
   MessageList,
@@ -23,7 +19,7 @@ import CustomChannelHeader from "./channel-header";
 import { EmptyChannel } from "./empty-channel";
 
 interface IChannelContainer {
-  channel: StreamChannel;
+  //   channel: StreamChannel;
   setChatExpanded?: (expanded: boolean) => void;
   submitHandler: (params: {
     cid: string;
@@ -34,7 +30,7 @@ interface IChannelContainer {
 }
 
 function ChannelContainer({
-  channel,
+  //   channel,
   setChatExpanded,
   submitHandler,
 }: IChannelContainer) {
@@ -45,20 +41,22 @@ function ChannelContainer({
   }
 
   return (
-    <ChannelUI
-      channel={channel}
+    <Channel
+      //   channel={channel}
       EmptyStateIndicator={EmptyChannel}
       LoadingIndicator={LoadingIndicator}
       ReactionsList={SimpleReactionsList}
       ThreadHeader={ThreadHeader}
     >
-      <Window>
-        <CustomChannelHeader setChatExpanded={setChatExpanded} />
-        <MessageList />
-        <MessageInput overrideSubmitHandler={submitHandler} />
-      </Window>
+      <div className="p-4 w-full">
+        <Window>
+          <CustomChannelHeader setChatExpanded={setChatExpanded} />
+          <MessageList />
+          <MessageInput overrideSubmitHandler={submitHandler} />
+        </Window>
+      </div>
       <Thread />
-    </ChannelUI>
+    </Channel>
   );
 }
 

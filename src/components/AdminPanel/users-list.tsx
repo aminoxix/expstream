@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { UserResponse } from "stream-chat";
-import { Avatar as StreamAvatar, useChatContext } from "stream-chat-react";
+import { Avatar, useChatContext } from "stream-chat-react";
 import { useAdminPanelFormState } from "./context/AdminPanelFormContext";
 import { ValidationError } from "./ValidationError";
 
@@ -60,7 +60,9 @@ const UserItem = ({ index, user }: UserItemProps) => {
   return (
     <TableRow className="hover:bg-muted/50">
       <TableCell className="flex items-center gap-3">
-        <StreamAvatar className="size-5" image={user.image} name={title} />
+        <div className="size-5 rounded-md">
+          <Avatar className="size-5" image={user.image} name={title} />
+        </div>
         <span className="font-medium">{title}</span>
       </TableCell>
       <TableCell>{lastActive}</TableCell>

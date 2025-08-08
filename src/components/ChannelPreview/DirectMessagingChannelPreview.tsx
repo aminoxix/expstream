@@ -24,7 +24,7 @@ export const DirectMessagingChannelPreview = ({
     const member = members[0];
     displayText = member?.user?.name || member?.user?.id || defaultName;
     return (
-      <div className="flex gap-2 pt-2 items-center" title={displayText}>
+      <div className="flex gap-2 items-center" title={displayText}>
         <Avatar
           image={member.user?.image}
           name={member.user?.name || member.user?.id}

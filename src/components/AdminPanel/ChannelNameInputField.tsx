@@ -1,4 +1,7 @@
+import { Label } from "@radix-ui/react-dropdown-menu";
 import { ChangeEventHandler } from "react";
+import { Card } from "../ui/card";
+import { Input } from "../ui/input";
 import { ValidationError } from "./ValidationError";
 
 type ChannelNameInputProps = {
@@ -15,17 +18,17 @@ export const ChannelNameInputField = ({
   onChange,
 }: ChannelNameInputProps) => {
   return (
-    <div className="channel-name-input-field">
-      <h2>
-        <span>Name</span>
+    <Card className="p-4">
+      <div>
+        <Label className="font-semibold"># Channel Name</Label>
         <ValidationError errorMessage={error} />
-      </h2>
-      <input
+      </div>
+      <Input
         onChange={onChange}
         placeholder={placeholder}
         type="text"
         value={name}
       />
-    </div>
+    </Card>
   );
 };

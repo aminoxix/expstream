@@ -39,7 +39,7 @@ const ChannelList = (props: PropsWithChildren<TeamChannelListProps>) => {
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       <div className="flex pt-4 justify-between items-center">
         <p className="uppercase text-xs text-gray-500 font-bold">
           {type === "team" ? "Channels" : "Direct Messages"}
