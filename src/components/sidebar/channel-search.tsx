@@ -1,26 +1,23 @@
-import { useDebouncedCallback } from "@/hooks/debounce";
+// src/components/ChannelSearch.tsx
+"use client";
+
+import { useWorkspaceController } from "@/context/workspace-controller";
+import { WorkspaceFactory } from "@/types";
 import { useCallback, useEffect, useState } from "react";
-import type { Channel as StreamChannel, UserResponse } from "stream-chat";
+import type { Channel, UserResponse } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
 import { Input } from "../ui/input";
 import { ResultsDropdown } from "./results-dropdown";
 import { channelByUser, ChannelOrUserType, isChannel } from "./utils";
 
-interface ChannelSearchProps {
-  setActiveChannel: React.Dispatch<
-    React.SetStateAction<StreamChannel | undefined>
-  >;
-}
+export const ChannelSearch = () => {
+  const { client, setActiveChannel } = useChatContext();
+  const { displayWorkspace } = useWorkspaceController();
 
-export const ChannelSearch = ({ setActiveChannel }: ChannelSearchProps) => {
-  const { client, setActiveChannel: setContextActiveChannel } =
-    useChatContext();
   const [allChannels, setAllChannels] = useState<
     ConcatArray<ChannelOrUserType> | undefined
   >();
-  const [teamChannels, setTeamChannels] = useState<
-    StreamChannel[] | undefined
-  >();
+  const [teamChannels, setTeamChannels] = useState<Channel[] | undefined>();
   const [directChannels, setDirectChannels] = useState<
     UserResponse[] | undefined
   >();
@@ -28,6 +25,7 @@ export const ChannelSearch = ({ setActiveChannel }: ChannelSearchProps) => {
   const [focusedId, setFocusedId] = useState("");
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -43,21 +41,32 @@ export const ChannelSearch = ({ setActiveChannel }: ChannelSearchProps) => {
         });
       } else if (event.key === "Enter") {
         event.preventDefault();
+
         if (allChannels !== undefined && focused !== undefined) {
           const channelToCheck = allChannels[focused];
+
           if (isChannel(channelToCheck)) {
-            setContextActiveChannel(channelToCheck);
             setActiveChannel(channelToCheck);
+            displayWorkspace(
+              WorkspaceFactory.createAdminChannelEdit(channelToCheck)
+            );
           } else {
             channelByUser({ client, setActiveChannel, user: channelToCheck });
+            displayWorkspace(WorkspaceFactory.createChat());
           }
         }
+
         setFocused(undefined);
         setFocusedId("");
         setQuery("");
+        setDropdownOpen(false);
+      } else if (event.key === "Escape") {
+        setQuery("");
+        setDropdownOpen(false);
+        displayWorkspace(WorkspaceFactory.createChat());
       }
     },
-    [allChannels, client, focused, setContextActiveChannel, setActiveChannel]
+    [allChannels, client, focused, setActiveChannel, displayWorkspace]
   );
 
   useEffect(() => {
@@ -71,23 +80,29 @@ export const ChannelSearch = ({ setActiveChannel }: ChannelSearchProps) => {
     if (!query) {
       setTeamChannels([]);
       setDirectChannels([]);
+      setAllChannels([]);
+      setDropdownOpen(false);
+    } else {
+      setDropdownOpen(true);
     }
   }, [query]);
 
   useEffect(() => {
-    if (focused && focused >= 0 && allChannels) {
+    if (focused !== undefined && focused >= 0 && allChannels) {
       setFocusedId(allChannels[focused].id || "");
     }
   }, [allChannels, focused]);
 
-  const setChannel = (channel: StreamChannel) => {
+  const setChannel = (channel: Channel) => {
     setQuery("");
-    setContextActiveChannel(channel);
     setActiveChannel(channel);
+    setDropdownOpen(false);
+    displayWorkspace(WorkspaceFactory.createAdminChannelEdit(channel));
   };
 
   const getChannels = async (text: string) => {
     try {
+      setLoading(true);
       const channelResponse = client.queryChannels(
         {
           type: "team",
@@ -96,34 +111,45 @@ export const ChannelSearch = ({ setActiveChannel }: ChannelSearchProps) => {
         {},
         { limit: 5 }
       );
+
       const userResponse = client.queryUsers(
         { name: { $autocomplete: text } },
         { id: 1 },
         { limit: 5 }
       );
+
       const [channels, { users }] = await Promise.all([
         channelResponse,
         userResponse,
       ]);
       const otherUsers = users.filter((user) => user.id !== client.userID);
-      if (channels.length) setTeamChannels(channels);
-      if (otherUsers.length) setDirectChannels(otherUsers);
+      setTeamChannels(channels);
+      setDirectChannels(otherUsers);
       setAllChannels([...channels, ...otherUsers]);
     } catch (event) {
       setQuery("");
+      setDropdownOpen(false);
+      displayWorkspace(WorkspaceFactory.createChat());
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
-
-  const getChannelsDebounce = useDebouncedCallback(getChannels, 500);
 
   const onSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     event.preventDefault();
     setLoading(true);
     setFocused(undefined);
     setQuery(event.target.value);
-    if (!event.target.value) return;
-    getChannelsDebounce(event.target.value);
+    if (!event.target.value) {
+      setTeamChannels([]);
+      setDirectChannels([]);
+      setAllChannels([]);
+      setLoading(false);
+      setDropdownOpen(false);
+      displayWorkspace(WorkspaceFactory.createChat());
+      return;
+    }
+    getChannels(event.target.value);
   };
 
   return (
@@ -136,16 +162,16 @@ export const ChannelSearch = ({ setActiveChannel }: ChannelSearchProps) => {
           value={query}
         />
       </div>
-      {query && (
-        <ResultsDropdown
-          teamChannels={teamChannels}
-          directChannels={directChannels}
-          focusedId={focusedId}
-          loading={loading}
-          setChannel={setChannel}
-          setQuery={setQuery}
-        />
-      )}
+      <ResultsDropdown
+        teamChannels={teamChannels}
+        directChannels={directChannels}
+        focusedId={focusedId}
+        loading={loading}
+        setChannel={setChannel}
+        setQuery={setQuery}
+        dropdownOpen={dropdownOpen}
+        setDropdownOpen={setDropdownOpen}
+      />
     </div>
   );
 };

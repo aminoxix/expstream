@@ -1,5 +1,5 @@
-export const TeamChannelPreview = ({name}: {name: string}) => (
-  <div className='channel-preview__item' title={name}>
+export const TeamChannelPreview = ({ name }: { name: string }) => (
+  <div className="text-sm" title={name}>
     <p>{`# ${name}`}</p>
   </div>
 );

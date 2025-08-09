@@ -1,4 +1,6 @@
-import { Button } from "@/components/ui/button";
+// src/components/ResultsDropdown.tsx
+"use client";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,9 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils"; // Utility for conditional classNames
+import { cn } from "@/lib/utils";
 import { Channel, UserResponse } from "stream-chat";
 import { Avatar, useChatContext } from "stream-chat-react";
 import { channelByUser, ChannelOrUserType, isChannel } from "./utils";
@@ -69,6 +70,8 @@ type ResultsDropdownProps = {
   loading: boolean;
   setChannel: (channel: Channel) => void;
   setQuery: React.Dispatch<React.SetStateAction<string>>;
+  dropdownOpen: boolean;
+  setDropdownOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 export const ResultsDropdown = ({
@@ -78,15 +81,15 @@ export const ResultsDropdown = ({
   loading,
   setChannel,
   setQuery,
+  dropdownOpen,
+  setDropdownOpen,
 }: ResultsDropdownProps) => {
   return (
-    <DropdownMenu onOpenChange={(open) => !open && setQuery("")}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-full justify-start">
-          Search Results
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64 max-h-96 overflow-y-auto">
+    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+      <DropdownMenuContent
+        className="w-64 max-h-96 overflow-y-auto absolute top-full left-0 mt-1"
+        align="start"
+      >
         <DropdownMenuLabel>Channels</DropdownMenuLabel>
         <DropdownMenuGroup>
           {loading && !teamChannels.length && (

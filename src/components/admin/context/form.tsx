@@ -1,3 +1,7 @@
+// src/components/context/form.tsx
+"use client";
+
+import { Workspace, WorkspaceKind } from "@/types/workspace";
 import {
   ChangeEventHandler,
   createContext,
@@ -8,9 +12,9 @@ import {
   useEffect,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { Channel as StreamChannel } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
-import { Workspace } from "../../../context/workspace-controller";
 
 type UpsertChannelParams = { name: string; members: string[] };
 
@@ -34,6 +38,7 @@ type AdminPanelFormContext = FormValues & {
   handleSubmit: MouseEventHandler<HTMLButtonElement>;
   createChannelType?: ChannelType;
   errors: FormErrors;
+  canUpdateChannel: boolean; // Added to indicate update permission
 };
 
 const Context = createContext<AdminPanelFormContext>({
@@ -43,6 +48,7 @@ const Context = createContext<AdminPanelFormContext>({
   members: [],
   name: "",
   errors: { name: null, members: null },
+  canUpdateChannel: false,
 });
 
 type AdminPanelFormProps = {
@@ -51,14 +57,29 @@ type AdminPanelFormProps = {
   defaultValues: FormValues;
 };
 
-const getChannelTypeFromWorkspaceName = (
+const getChannelTypeFromWorkspace = (
   workspace: Workspace
-): ChannelType | undefined =>
-  workspace.match(/.*__(team|messaging)/)?.[1] as ChannelType | undefined;
+): ChannelType | undefined => {
+  switch (workspace.kind) {
+    case WorkspaceKind.AdminChannelCreateTeam:
+      return "team";
+    case WorkspaceKind.AdminChannelCreateMessaging:
+      return "messaging";
+    default:
+      return undefined;
+  }
+};
 
 const getUpsertAction = (workspace: Workspace): UpsertAction | undefined => {
-  if (workspace.match("Channel-Create")) return "create";
-  if (workspace.match("Channel-Edit")) return "update";
+  switch (workspace.kind) {
+    case WorkspaceKind.AdminChannelCreateTeam:
+    case WorkspaceKind.AdminChannelCreateMessaging:
+      return "create";
+    case WorkspaceKind.AdminChannelEdit:
+      return "update";
+    default:
+      return undefined;
+  }
 };
 
 export const AdminPanelForm = ({
@@ -75,42 +96,83 @@ export const AdminPanelForm = ({
     members: null,
   });
 
-  const createChannelType = getChannelTypeFromWorkspaceName(workspace);
+  const createChannelType = getChannelTypeFromWorkspace(workspace);
   const action = getUpsertAction(workspace);
+
+  // Check if user has permission to update channel
+  const canUpdateChannel = useCallback(() => {
+    if (!channel || action !== "update") return false;
+    // Check user roles or channel permissions
+    const userRoles = client.user?.role ? [client.user.role] : [];
+    const channelRoles = channel.data?.own_capabilities || [];
+    return (
+      userRoles.includes("admin") ||
+      userRoles.includes("channel_moderator") ||
+      channelRoles.includes("update-channel")
+    );
+  }, [client.user, channel, action]);
 
   const createChannel = useCallback(
     async ({ name, members }: UpsertChannelParams) => {
-      if (!createChannelType || members.length === 0) return undefined;
+      if (!createChannelType || members.length === 0) {
+        toast.error(
+          "Cannot create channel: Invalid type or no members selected"
+        );
+        return undefined;
+      }
 
-      const channelId = name
-        ? name.toLowerCase().replace(/\s/g, "-")
-        : undefined;
-      const newChannel = client.channel(createChannelType, channelId, {
-        name,
-        members,
-        demo: "team",
-      });
+      try {
+        const channelId = name
+          ? name.toLowerCase().replace(/\s/g, "-")
+          : undefined;
+        const newChannel = client.channel(createChannelType, channelId, {
+          name,
+          members,
+          demo: "team",
+        });
 
-      await newChannel.watch();
-      setActiveChannel(newChannel);
-      return newChannel;
+        await newChannel.watch();
+        setActiveChannel(newChannel);
+        toast.success("Channel created successfully");
+        return newChannel;
+      } catch (error) {
+        toast.error("Failed to create channel");
+        throw error;
+      }
     },
     [createChannelType, setActiveChannel, client]
   );
 
   const updateChannel = useCallback(
     async ({ name, members }: UpsertChannelParams) => {
-      if (name !== (channel?.data?.config?.name || channel?.data?.id)) {
-        await channel?.update(
-          { name },
-          { text: `Channel name changed to ${name}` }
-        );
+      if (!channel) {
+        toast.error("No channel selected for update");
+        return;
       }
-      if (members?.length) {
-        await channel?.addMembers(members);
+
+      if (!canUpdateChannel()) {
+        toast.error("You do not have permission to update this channel");
+        return;
+      }
+
+      try {
+        if (name !== (channel?.data?.name || channel?.id)) {
+          await channel.update(
+            { name },
+            { text: `Channel name changed to ${name}` }
+          );
+          toast.success("Channel name updated");
+        }
+        if (members?.length) {
+          await channel.addMembers(members);
+          toast.success("Members added to channel");
+        }
+      } catch (error) {
+        toast.error("Failed to update channel: Insufficient permissions");
+        throw error;
       }
     },
-    [channel]
+    [channel, canUpdateChannel]
   );
 
   const validateForm = useCallback(
@@ -129,7 +191,7 @@ export const AdminPanelForm = ({
         errors = {
           name:
             !values.name && createChannelType === "team"
-              ? "Channel name is required"
+              ? "Channel name is required for team channels"
               : null,
           members:
             values.members.length < 2
@@ -165,17 +227,21 @@ export const AdminPanelForm = ({
 
       if (errors) {
         setErrors(errors);
+        toast.error("Please fix form errors before submitting");
         return;
       }
 
       try {
         let newChannel: StreamChannel | undefined;
-        if (action === "create")
+        if (action === "create") {
           newChannel = await createChannel({ name, members });
-        if (action === "update") await updateChannel({ name, members });
+        }
+        if (action === "update") {
+          await updateChannel({ name, members });
+        }
         onSubmit(newChannel);
-      } catch (err) {
-        console.error("[AdminPanelForm] Error:", err);
+      } catch (error) {
+        console.error("[AdminPanelForm] Error:", error);
       }
     },
     [
@@ -194,6 +260,7 @@ export const AdminPanelForm = ({
     (event) => {
       event.preventDefault();
       setChannelName(event.target.value);
+      setErrors((prev) => ({ ...prev, name: null }));
     },
     []
   );
@@ -202,11 +269,14 @@ export const AdminPanelForm = ({
     setMembers((prev) =>
       checked ? [...prev, value] : prev.filter((id) => id !== value)
     );
+    setErrors((prev) => ({ ...prev, members: null }));
   }, []);
 
   useEffect(() => {
     setChannelName(defaultValues.name);
-  }, [defaultValues, createChannelType]);
+    setMembers(defaultValues.members);
+    setErrors({ name: null, members: null });
+  }, [defaultValues]);
 
   return (
     <Context.Provider
@@ -218,6 +288,7 @@ export const AdminPanelForm = ({
         handleInputChange,
         handleMemberSelect,
         handleSubmit,
+        canUpdateChannel: canUpdateChannel(),
       }}
     >
       {children}

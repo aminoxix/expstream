@@ -1,4 +1,8 @@
+// src/components/ChannelContainer.tsx
+"use client";
+
 import { useWorkspaceController } from "@/context/workspace-controller";
+import { WorkspaceKind } from "@/types/workspace";
 import {
   LocalMessage,
   Message,
@@ -32,30 +36,25 @@ interface IChannelContainer {
   setActiveChannel?: (channel: StreamChannel | undefined) => void;
 }
 
+// Define admin workspace kinds as a constant array
+const ADMIN_WORKSPACE_KINDS: WorkspaceKind[] = [
+  WorkspaceKind.AdminChannelEdit,
+  WorkspaceKind.AdminChannelCreateTeam,
+  WorkspaceKind.AdminChannelCreateMessaging,
+];
+
+// Helper function to check if a workspace is admin-related
+const isAdminWorkspace = (kind: WorkspaceKind): boolean => {
+  return ADMIN_WORKSPACE_KINDS.includes(kind);
+};
+
 function ChannelContainer({
-  setChatExpanded,
   submitHandler,
   setActiveChannel,
 }: IChannelContainer) {
   const { activeWorkspace } = useWorkspaceController();
 
-  //   // todo: migrate to channel capabilities once migration guide is available
-  //   const teamPermissions: PinEnabledUserRoles = {
-  //     ...defaultPinPermissions.team,
-  //     user: true,
-  //   };
-  //   const messagingPermissions: PinEnabledUserRoles = {
-  //     ...defaultPinPermissions.messaging,
-  //     user: true,
-  //   };
-
-  //   const pinnedPermissions = {
-  //     ...defaultPinPermissions,
-  //     team: teamPermissions,
-  //     messaging: messagingPermissions,
-  //   };
-
-  if (activeWorkspace.match("Admin")) {
+  if (isAdminWorkspace(activeWorkspace.kind)) {
     return <AdminPanel setActiveChannel={setActiveChannel} />;
   }
 
@@ -69,10 +68,7 @@ function ChannelContainer({
       >
         <Window>
           <TeamChannelHeader />
-          <MessageList
-            disableQuotedMessages={true}
-            // pinPermissions={pinnedPermissions}
-          />
+          <MessageList disableQuotedMessages={true} />
           <MessageInput
             minRows={1}
             maxRows={8}
