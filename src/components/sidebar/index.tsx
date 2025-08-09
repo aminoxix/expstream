@@ -134,7 +134,7 @@ const MessagingChannelsList = ({
 export const Sidebar = ({ setActiveChannel }: SidebarProps) => {
   return (
     <div className="h-full flex flex-col gap-4 justify-center">
-      <ChannelSearch setActiveChannel={setActiveChannel} />
+      <ChannelSearch />
       <TeamChannelsList setActiveChannel={setActiveChannel} />
       <MessagingChannelsList setActiveChannel={setActiveChannel} />
     </div>

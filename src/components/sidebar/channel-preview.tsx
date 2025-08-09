@@ -1,3 +1,7 @@
+// src/components/channel-preview.tsx
+"use client";
+
+import { WorkspaceFactory } from "@/types";
 import clsx from "clsx";
 import { useCallback } from "react";
 import { Channel } from "stream-chat";
@@ -11,7 +15,7 @@ import { DirectMessagingChannelPreview } from "./dm-channel-preview";
 import { TeamChannelPreview } from "./team-channel-preview";
 
 type TeamChannelPreviewProps = ChannelPreviewUIComponentProps & {
-  type: string;
+  type: "team" | "messaging";
   setActiveChannel?: (channel: Channel | undefined) => void;
 };
 
@@ -25,7 +29,7 @@ export const ChannelPreview = ({
   const { displayWorkspace } = useWorkspaceController();
 
   const handleClick = useCallback(() => {
-    displayWorkspace("Chat");
+    displayWorkspace(WorkspaceFactory.createChat());
     setContextActiveChannel(channel);
     setActiveChannel?.(channel);
   }, [channel, displayWorkspace, setContextActiveChannel, setActiveChannel]);
@@ -35,17 +39,15 @@ export const ChannelPreview = ({
       variant="ghost"
       className={clsx(
         "flex justify-start",
-        channel?.id === activeChannel?.id ? "font-bold" : "font-normal"
+        channel?.id === activeChannel?.id
+          ? "font-bold bg-gray-200"
+          : "font-normal"
       )}
       onClick={handleClick}
     >
       {type === "team" ? (
         <TeamChannelPreview
-          name={
-            channel?.data?.config?.name ||
-            (channel?.data?.id as string) ||
-            "random"
-          }
+          name={channel?.data?.name || channel?.id || "random"}
         />
       ) : (
         <DirectMessagingChannelPreview channel={channel} />

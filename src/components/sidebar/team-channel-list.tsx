@@ -1,16 +1,14 @@
 import React, { PropsWithChildren, useCallback } from "react";
 
-import {
-  useWorkspaceController,
-  Workspace,
-} from "@/context/workspace-controller";
+import { useWorkspaceController } from "@/context/workspace-controller";
 
+import { WorkspaceFactory } from "@/types";
 import { PlusCircleIcon } from "@phosphor-icons/react";
 import type { ChannelListMessengerProps } from "stream-chat-react";
 import { Button } from "../ui/button";
 
 export type TeamChannelListProps = ChannelListMessengerProps & {
-  type: string;
+  type: "messaging" | "team";
 };
 
 const ChannelList = (props: PropsWithChildren<TeamChannelListProps>) => {
@@ -19,7 +17,8 @@ const ChannelList = (props: PropsWithChildren<TeamChannelListProps>) => {
   const { displayWorkspace } = useWorkspaceController();
 
   const handleAddChannelClick = useCallback(() => {
-    displayWorkspace(`Admin-Channel-Create__${type}` as Workspace);
+    const workspace = WorkspaceFactory.createAdminChannelCreate(type);
+    displayWorkspace(workspace);
   }, [type, displayWorkspace]);
 
   if (error) {

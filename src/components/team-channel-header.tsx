@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspaceController } from "@/context/workspace-controller";
+import { WorkspaceFactory } from "@/types";
 import { InfoIcon, PinIcon } from "lucide-react";
 import { MouseEventHandler, useCallback, useMemo } from "react";
 import {
@@ -15,7 +16,7 @@ import {
 export const TeamChannelHeader = () => {
   const { displayWorkspace, togglePinnedMessageListOpen } =
     useWorkspaceController();
-  const { client } = useChatContext();
+  const { client, channel: activeChannel } = useChatContext();
   const { channel, watcher_count } = useChannelStateContext();
   const { closeThread } = useChannelActionContext();
 
@@ -24,8 +25,15 @@ export const TeamChannelHeader = () => {
   }`;
 
   const openChannelEditPanel = useCallback(() => {
-    displayWorkspace("Admin-Channel-Edit");
-  }, [displayWorkspace]);
+    // Use channel from props or useChatContext
+    const targetChannel = channel || activeChannel;
+    if (!targetChannel) {
+      console.error("No channel available for editing");
+      return;
+    }
+    const workspace = WorkspaceFactory.createAdminChannelEdit(targetChannel);
+    displayWorkspace(workspace);
+  }, [displayWorkspace, channel, activeChannel]);
 
   const onPinIconClick: MouseEventHandler = useCallback(
     (event) => {
