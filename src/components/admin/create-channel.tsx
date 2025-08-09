@@ -1,10 +1,10 @@
-import { AdminPanelFooter } from "./AdminPanelFooter";
-import { AdminPanelHeader } from "./AdminPanelHeader";
-import { ChannelNameInputField } from "./ChannelNameInputField";
+import { ChannelNameInputField } from "./channel-name-input";
+import { AdminPanelFooter } from "./footer";
+import { AdminPanelHeader } from "./header";
 import { UserList } from "./users-list";
 
 import { useWorkspaceController } from "../../context/workspace-controller";
-import { useAdminPanelFormState } from "./context/AdminPanelFormContext";
+import { useAdminPanelFormState } from "./context/form";
 
 export const CreateChannel = () => {
   const { closeAdminPanel } = useWorkspaceController();

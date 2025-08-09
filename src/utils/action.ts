@@ -1,13 +1,7 @@
 "use server";
 
+import { UserObject } from "@/types";
 import { StreamClient, UserRequest } from "@stream-io/node-sdk";
-
-export type UserObject = {
-  userId: string;
-  email?: string;
-  imageUrl?: string;
-  fullName?: string;
-};
 
 export async function createToken(userId: string) {
   const apiKey = process.env.STREAM_API_KEY;

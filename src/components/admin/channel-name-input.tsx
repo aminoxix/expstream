@@ -1,8 +1,9 @@
+import { HashStraightIcon } from "@phosphor-icons/react";
 import { Label } from "@radix-ui/react-dropdown-menu";
 import { ChangeEventHandler } from "react";
 import { Card } from "../ui/card";
 import { Input } from "../ui/input";
-import { ValidationError } from "./ValidationError";
+import { ValidationError } from "./error";
 
 type ChannelNameInputProps = {
   name: string;
@@ -20,7 +21,9 @@ export const ChannelNameInputField = ({
   return (
     <Card className="p-4">
       <div>
-        <Label className="font-semibold"># Channel Name</Label>
+        <Label className="flex gap-2 items-center font-semibold">
+          <HashStraightIcon weight="bold" /> Channel Name
+        </Label>
         <ValidationError errorMessage={error} />
       </div>
       <Input

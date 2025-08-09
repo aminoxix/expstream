@@ -1,14 +1,8 @@
 "use client";
 
+import { UserObject } from "@/types";
 import { createStreamUser, createToken } from "@/utils/action";
 import { useState } from "react";
-
-export type UserObject = {
-  userId: string;
-  email: string;
-  imageUrl?: string;
-  fullName?: string;
-};
 
 export default function CreateStreamUser() {
   const [creationOngoing, setCreationOngoing] = useState(false);

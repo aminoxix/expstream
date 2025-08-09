@@ -2,9 +2,9 @@ import { useCallback } from "react";
 import { Channel as StreamChannel } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
 import { useWorkspaceController } from "../../context/workspace-controller";
-import { AdminPanelForm, FormValues } from "./context/AdminPanelFormContext";
-import { CreateChannel } from "./CreateChannel";
-import { EditChannel } from "./EditChannel";
+import { AdminPanelForm, FormValues } from "./context/form";
+import { CreateChannel } from "./create-channel";
+import { EditChannel } from "./edit-channel";
 
 interface AdminPanelProps {
   setActiveChannel?: (channel: StreamChannel | undefined) => void;
@@ -31,7 +31,7 @@ export const AdminPanel = ({ setActiveChannel }: AdminPanelProps) => {
       members: client.userID ? [client.userID] : [],
       name: "",
     };
-    Form = CreateChannel; // Pass setActiveChannel via context
+    Form = CreateChannel;
   } else if (activeWorkspace.match("Channel-Edit")) {
     defaultFormValues = {
       members: [],

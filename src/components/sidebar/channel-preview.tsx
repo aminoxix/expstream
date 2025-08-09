@@ -7,8 +7,8 @@ import {
 } from "stream-chat-react";
 import { useWorkspaceController } from "../../context/workspace-controller";
 import { Button } from "../ui/button";
-import { DirectMessagingChannelPreview } from "./DirectMessagingChannelPreview";
-import { TeamChannelPreview } from "./TeamChannelPreview";
+import { DirectMessagingChannelPreview } from "./dm-channel-preview";
+import { TeamChannelPreview } from "./team-channel-preview";
 
 type TeamChannelPreviewProps = ChannelPreviewUIComponentProps & {
   type: string;

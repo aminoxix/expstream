@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { UserResponse } from "stream-chat";
 import { Avatar, useChatContext } from "stream-chat-react";
-import { useAdminPanelFormState } from "./context/AdminPanelFormContext";
-import { ValidationError } from "./ValidationError";
+import { useAdminPanelFormState } from "./context/form";
+import { ValidationError } from "./error";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -58,10 +58,10 @@ const UserItem = ({ index, user }: UserItemProps) => {
   const title = user.name || user.id;
 
   return (
-    <TableRow className="hover:bg-muted/50">
+    <TableRow className="hover:bg-muted/50 h-12">
       <TableCell className="flex items-center gap-3">
-        <div className="size-5 rounded-md">
-          <Avatar className="size-5" image={user.image} name={title} />
+        <div className="size-8 rounded-md">
+          <Avatar image={user.image} name={title} />
         </div>
         <span className="font-medium">{title}</span>
       </TableCell>

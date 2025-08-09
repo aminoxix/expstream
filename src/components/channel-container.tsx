@@ -16,9 +16,10 @@ import {
   Window,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
-import { AdminPanel } from "./AdminPanel/AdminPanel";
-import CustomChannelHeader from "./channel-header";
+import { AdminPanel } from "./admin/panel";
 import { EmptyChannel } from "./empty-channel";
+import { PinnedMessageList } from "./pinned-message-list";
+import { TeamChannelHeader } from "./team-channel-header";
 
 interface IChannelContainer {
   setChatExpanded?: (expanded: boolean) => void;
@@ -38,6 +39,22 @@ function ChannelContainer({
 }: IChannelContainer) {
   const { activeWorkspace } = useWorkspaceController();
 
+  //   // todo: migrate to channel capabilities once migration guide is available
+  //   const teamPermissions: PinEnabledUserRoles = {
+  //     ...defaultPinPermissions.team,
+  //     user: true,
+  //   };
+  //   const messagingPermissions: PinEnabledUserRoles = {
+  //     ...defaultPinPermissions.messaging,
+  //     user: true,
+  //   };
+
+  //   const pinnedPermissions = {
+  //     ...defaultPinPermissions,
+  //     team: teamPermissions,
+  //     messaging: messagingPermissions,
+  //   };
+
   if (activeWorkspace.match("Admin")) {
     return <AdminPanel setActiveChannel={setActiveChannel} />;
   }
@@ -51,11 +68,19 @@ function ChannelContainer({
         ThreadHeader={ThreadHeader}
       >
         <Window>
-          <CustomChannelHeader setChatExpanded={setChatExpanded} />
-          <MessageList />
-          <MessageInput overrideSubmitHandler={submitHandler} />
+          <TeamChannelHeader />
+          <MessageList
+            disableQuotedMessages={true}
+            // pinPermissions={pinnedPermissions}
+          />
+          <MessageInput
+            minRows={1}
+            maxRows={8}
+            overrideSubmitHandler={submitHandler}
+          />
         </Window>
-        <Thread />
+        <Thread additionalMessageInputProps={{ maxRows: 8, minRows: 1 }} />
+        <PinnedMessageList />
       </Channel>
     </div>
   );

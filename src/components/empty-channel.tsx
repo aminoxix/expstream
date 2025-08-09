@@ -64,7 +64,7 @@ export const EmptyChannel = () => {
   return (
     <div className="flex gap-2 items-center">
       {channel?.type === "team" ? <HashStraightIcon /> : getAvatarGroup()}
-      <div className="">
+      <div className="mt-4">
         <p className="text-sm font-semibold">
           This is the beginning of your chat history
           {channel?.type === "team" ? " in " : " with "}

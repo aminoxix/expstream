@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Channel as StreamChannel, UserResponse } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
 import { Input } from "../ui/input";
-import { ResultsDropdown } from "./ResultsDropdown";
+import { ResultsDropdown } from "./results-dropdown";
 import { channelByUser, ChannelOrUserType, isChannel } from "./utils";
 
 interface ChannelSearchProps {

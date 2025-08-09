@@ -3,11 +3,11 @@ import React, { PropsWithChildren, useCallback } from "react";
 import {
   useWorkspaceController,
   Workspace,
-} from "../context/workspace-controller";
+} from "@/context/workspace-controller";
 
 import { PlusCircleIcon } from "@phosphor-icons/react";
 import type { ChannelListMessengerProps } from "stream-chat-react";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 
 export type TeamChannelListProps = ChannelListMessengerProps & {
   type: string;
