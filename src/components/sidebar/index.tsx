@@ -1,4 +1,7 @@
-import { useEffect } from "react";
+// src/components/sidebar/index.tsx
+"use client";
+
+import { useEffect, useMemo } from "react";
 import type {
   Channel,
   ChannelFilters,
@@ -16,10 +19,11 @@ interface SidebarProps {
   >;
 }
 
-const filters: ChannelFilters[] = [
-  { type: "team", demo: "team" },
-  { type: "messaging", demo: "team" },
+const getFilters = (userId: string | undefined): ChannelFilters[] => [
+  { type: "team", demo: "team", members: { $in: [userId ?? ""] } },
+  { type: "messaging", demo: "team", members: { $in: [userId ?? ""] } },
 ];
+
 const options = { state: true, watch: true, presence: true, limit: 10 };
 const sort: ChannelSort = { last_message_at: -1, updated_at: -1 };
 
@@ -37,9 +41,12 @@ const TeamChannelsList = ({
   setActiveChannel: SidebarProps["setActiveChannel"];
 }) => {
   const { client } = useChatContext();
+  const filters = useMemo(() => getFilters(client.userID), [client.userID]);
 
   // Refresh channels on mount and on channel creation
   useEffect(() => {
+    if (!client.userID) return;
+
     const refreshChannels = async () => {
       try {
         await client.queryChannels(filters[0], sort, options);
@@ -58,7 +65,7 @@ const TeamChannelsList = ({
     return () => {
       client.off("channel.created", handleChannelCreated);
     };
-  }, [client]);
+  }, [client, filters]);
 
   return (
     <ChannelList
@@ -85,9 +92,12 @@ const MessagingChannelsList = ({
   setActiveChannel: SidebarProps["setActiveChannel"];
 }) => {
   const { client } = useChatContext();
+  const filters = useMemo(() => getFilters(client.userID), [client.userID]);
 
   // Refresh channels on mount and on channel creation
   useEffect(() => {
+    if (!client.userID) return;
+
     const refreshChannels = async () => {
       try {
         await client.queryChannels(filters[1], sort, options);
@@ -109,7 +119,7 @@ const MessagingChannelsList = ({
     return () => {
       client.off("channel.created", handleChannelCreated);
     };
-  }, [client]);
+  }, [client, filters]);
 
   return (
     <ChannelList
@@ -134,7 +144,7 @@ const MessagingChannelsList = ({
 export const Sidebar = ({ setActiveChannel }: SidebarProps) => {
   return (
     <div className="h-full flex flex-col gap-4 justify-center">
-      <ChannelSearch setActiveChannel={setActiveChannel} />
+      <ChannelSearch />
       <TeamChannelsList setActiveChannel={setActiveChannel} />
       <MessagingChannelsList setActiveChannel={setActiveChannel} />
     </div>

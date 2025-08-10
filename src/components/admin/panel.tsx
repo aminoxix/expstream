@@ -1,3 +1,7 @@
+// src/components/admin-panel.tsx
+"use client";
+
+import { WorkspaceFactory, WorkspaceKind } from "@/types";
 import { useCallback } from "react";
 import { Channel as StreamChannel } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
@@ -13,9 +17,10 @@ interface AdminPanelProps {
 export const AdminPanel = ({ setActiveChannel }: AdminPanelProps) => {
   const { client, channel } = useChatContext();
   const { displayWorkspace, activeWorkspace } = useWorkspaceController();
+
   const onSubmit = useCallback(
     (newChannel?: StreamChannel) => {
-      displayWorkspace("Chat");
+      displayWorkspace(WorkspaceFactory.createChat());
       if (newChannel && setActiveChannel) {
         setActiveChannel(newChannel);
       }
@@ -24,21 +29,30 @@ export const AdminPanel = ({ setActiveChannel }: AdminPanelProps) => {
   );
 
   let defaultFormValues: FormValues = { name: "", members: [] };
-  let Form = null;
+  let Form: React.ComponentType | null = null;
 
-  if (activeWorkspace.match("Channel-Create")) {
-    defaultFormValues = {
-      members: client.userID ? [client.userID] : [],
-      name: "",
-    };
-    Form = CreateChannel;
-  } else if (activeWorkspace.match("Channel-Edit")) {
-    defaultFormValues = {
-      members: [],
-      name: channel?.data?.config?.name || (channel?.data?.id as string),
-    };
-    Form = EditChannel;
+  switch (activeWorkspace.kind) {
+    case WorkspaceKind.AdminChannelCreateTeam:
+    case WorkspaceKind.AdminChannelCreateMessaging:
+      defaultFormValues = {
+        members: client.userID ? [client.userID] : [],
+        name: "",
+      };
+      Form = CreateChannel;
+      break;
+    case WorkspaceKind.AdminChannelEdit:
+      defaultFormValues = {
+        members: [],
+        name: channel?.data?.name || channel?.id || "",
+      };
+      Form = EditChannel;
+      break;
+    case WorkspaceKind.Chat:
+    default:
+      // For Chat or unknown workspaces, don't render a form
+      return null;
   }
+
   return (
     <AdminPanelForm
       workspace={activeWorkspace}

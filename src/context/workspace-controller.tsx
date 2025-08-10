@@ -1,29 +1,25 @@
+// src/context/WorkspaceController.tsx
+"use client";
+
 import React, { useCallback, useContext, useState } from "react";
-
-const noop = () => Promise.resolve();
-
-export type Workspace =
-  | "Chat"
-  | "Admin-Channel-Edit"
-  | "Admin-Channel-Create__team"
-  | "Admin-Channel-Create__messaging";
+import { Workspace, WorkspaceFactory } from "../types/workspace";
 
 type WorkspaceContext = {
   activeWorkspace: Workspace;
   closeAdminPanel: () => void;
-  displayWorkspace: (w: Workspace) => void;
+  displayWorkspace: (workspace: Workspace) => void;
   pinnedMessageListOpen: boolean;
   togglePinnedMessageListOpen: () => void;
   closePinnedMessageListOpen: () => void;
 };
 
 const WorkspaceControllerContext = React.createContext<WorkspaceContext>({
-  activeWorkspace: "Chat",
-  closeAdminPanel: noop,
-  displayWorkspace: noop,
+  activeWorkspace: WorkspaceFactory.createChat(),
+  closeAdminPanel: () => {},
+  displayWorkspace: () => {},
   pinnedMessageListOpen: false,
-  togglePinnedMessageListOpen: noop,
-  closePinnedMessageListOpen: noop,
+  togglePinnedMessageListOpen: () => {},
+  closePinnedMessageListOpen: () => {},
 });
 
 export const WorkspaceController = ({
@@ -31,25 +27,28 @@ export const WorkspaceController = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>("Chat");
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>(
+    WorkspaceFactory.createChat()
+  );
   const [pinnedMessageListOpen, setPinnedMessageListOpen] = useState(false);
 
-  const displayWorkspace: WorkspaceContext["displayWorkspace"] = useCallback(
-    (workspace) => {
-      setActiveWorkspace(workspace);
-      setPinnedMessageListOpen(false);
-    },
-    [setActiveWorkspace]
-  );
+  console.log("activeWorkspace", activeWorkspace);
+
+  const displayWorkspace = useCallback((workspace: Workspace) => {
+    console.log("workspace", workspace);
+    setActiveWorkspace(workspace);
+    setPinnedMessageListOpen(false);
+  }, []);
 
   const closeAdminPanel = useCallback(() => {
-    displayWorkspace("Chat");
+    displayWorkspace(WorkspaceFactory.createChat());
   }, [displayWorkspace]);
 
   const togglePinnedMessageListOpen = useCallback(
     () => setPinnedMessageListOpen((prev) => !prev),
     []
   );
+
   const closePinnedMessageListOpen = useCallback(
     () => setPinnedMessageListOpen(false),
     []
