@@ -107,6 +107,7 @@ export const ChannelSearch = () => {
         {
           type: "team",
           name: { $autocomplete: text },
+          members: { $in: [client.userID as string] },
         },
         {},
         { limit: 5 }
@@ -153,7 +154,7 @@ export const ChannelSearch = () => {
   };
 
   return (
-    <div className="">
+    <div className="relative">
       <div className="">
         <Input
           onChange={onSearch}

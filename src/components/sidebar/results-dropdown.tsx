@@ -80,16 +80,12 @@ export const ResultsDropdown = ({
   focusedId,
   loading,
   setChannel,
-  setQuery,
   dropdownOpen,
   setDropdownOpen,
 }: ResultsDropdownProps) => {
   return (
     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-      <DropdownMenuContent
-        className="w-64 max-h-96 overflow-y-auto absolute top-full left-0 mt-1"
-        align="start"
-      >
+      <DropdownMenuContent className="w-64 max-h-96 overflow-y-auto absolute top-2 left-52 mt-1">
         <DropdownMenuLabel>Channels</DropdownMenuLabel>
         <DropdownMenuGroup>
           {loading && !teamChannels.length && (

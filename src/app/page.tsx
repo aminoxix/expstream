@@ -34,8 +34,8 @@ export default function Dashboard() {
 
     const connectClient = async () => {
       try {
-        const token =
-          storedUser.token || (await createTokenProvider(storedUser.userId)());
+        const token = await createTokenProvider(storedUser.userId)();
+
         await client.connectUser(
           {
             id: storedUser.userId,
