@@ -69,7 +69,7 @@ export const EmptyChannel = () => {
           This is the beginning of your chat history
           {channel?.type === "team" ? " in " : " with "}
           {channel?.type === "team"
-            ? `#${channel?.data?.config?.name || channel?.data?.id}`
+            ? `#${channel?.data?.name || channel?.data?.id}`
             : getUserText()}
           .
         </p>

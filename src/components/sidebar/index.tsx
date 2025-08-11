@@ -9,6 +9,8 @@ import type {
   Channel as StreamChannel,
 } from "stream-chat";
 import { ChannelList, useChatContext } from "stream-chat-react";
+import { ScrollArea } from "../ui/scroll-area";
+import { Separator } from "../ui/separator";
 import { ChannelPreview } from "./channel-preview";
 import { ChannelSearch } from "./channel-search";
 import { TeamChannelList } from "./team-channel-list";
@@ -28,10 +30,18 @@ const options = { state: true, watch: true, presence: true, limit: 10 };
 const sort: ChannelSort = { last_message_at: -1, updated_at: -1 };
 
 const customChannelTeamFilter = (channels: Channel[]) => {
+  console.log(
+    "Team channels",
+    channels.filter((channel) => channel.type === "team")
+  );
   return channels.filter((channel) => channel.type === "team");
 };
 
 const customChannelMessagingFilter = (channels: Channel[]) => {
+  console.log(
+    "Messaging channels",
+    channels.filter((channel) => channel.type === "messaging")
+  );
   return channels.filter((channel) => channel.type === "messaging");
 };
 
@@ -43,7 +53,6 @@ const TeamChannelsList = ({
   const { client } = useChatContext();
   const filters = useMemo(() => getFilters(client.userID), [client.userID]);
 
-  // Refresh channels on mount and on channel creation
   useEffect(() => {
     if (!client.userID) return;
 
@@ -57,13 +66,15 @@ const TeamChannelsList = ({
     };
     refreshChannels();
 
-    // Listen for channel creation events
-    const handleChannelCreated = () => {
+    // Listen for channel creation and update events
+    const handleChannelEvent = () => {
       refreshChannels();
     };
-    client.on("channel.created", handleChannelCreated);
+    client.on("channel.created", handleChannelEvent);
+    client.on("channel.updated", handleChannelEvent); // Added for updates
     return () => {
-      client.off("channel.created", handleChannelCreated);
+      client.off("channel.created", handleChannelEvent);
+      client.off("channel.updated", handleChannelEvent);
     };
   }, [client, filters]);
 
@@ -94,7 +105,6 @@ const MessagingChannelsList = ({
   const { client } = useChatContext();
   const filters = useMemo(() => getFilters(client.userID), [client.userID]);
 
-  // Refresh channels on mount and on channel creation
   useEffect(() => {
     if (!client.userID) return;
 
@@ -111,13 +121,15 @@ const MessagingChannelsList = ({
     };
     refreshChannels();
 
-    // Listen for channel creation events
-    const handleChannelCreated = () => {
+    // Listen for channel creation and update events
+    const handleChannelEvent = () => {
       refreshChannels();
     };
-    client.on("channel.created", handleChannelCreated);
+    client.on("channel.created", handleChannelEvent);
+    client.on("channel.updated", handleChannelEvent); // Added for updates
     return () => {
-      client.off("channel.created", handleChannelCreated);
+      client.off("channel.created", handleChannelEvent);
+      client.off("channel.updated", handleChannelEvent);
     };
   }, [client, filters]);
 
@@ -143,11 +155,23 @@ const MessagingChannelsList = ({
 
 export const Sidebar = ({ setActiveChannel }: SidebarProps) => {
   return (
-    <div className="h-full flex flex-col gap-4 justify-center">
-      <ChannelSearch />
-      <TeamChannelsList setActiveChannel={setActiveChannel} />
-      <MessagingChannelsList setActiveChannel={setActiveChannel} />
-    </div>
+    <aside className="flex flex-col h-full bg-background">
+      <div className="p-3">
+        <ChannelSearch />
+      </div>
+
+      <Separator />
+
+      <ScrollArea className="flex-1 px-2">
+        <div className="py-2">
+          <TeamChannelsList setActiveChannel={setActiveChannel} />
+        </div>
+        <Separator className="my-2" />
+        <div className="py-2">
+          <MessagingChannelsList setActiveChannel={setActiveChannel} />
+        </div>
+      </ScrollArea>
+    </aside>
   );
 };
 

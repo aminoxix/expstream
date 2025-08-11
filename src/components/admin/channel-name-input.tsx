@@ -1,37 +1,38 @@
-import { HashStraightIcon } from "@phosphor-icons/react";
-import { Label } from "@radix-ui/react-dropdown-menu";
-import { ChangeEventHandler } from "react";
-import { Card } from "../ui/card";
-import { Input } from "../ui/input";
-import { ValidationError } from "./error";
+// src/components/channel-name-input.tsx
+"use client";
 
-type ChannelNameInputProps = {
-  name: string;
+import { ChangeEventHandler } from "react";
+import { Input } from "../ui/input";
+
+export interface ChannelNameInputProps {
+  name: string | undefined;
   error: string | null;
-  onChange: ChangeEventHandler<HTMLInputElement>;
   placeholder?: string;
-};
+  onChange: ChangeEventHandler<HTMLInputElement>;
+}
 
 export const ChannelNameInputField = ({
-  name = "",
+  name,
   error,
-  placeholder = "channel-name",
+  placeholder = "Channel name",
   onChange,
 }: ChannelNameInputProps) => {
   return (
-    <Card className="p-4">
-      <div>
-        <Label className="flex gap-2 items-center font-semibold">
-          <HashStraightIcon weight="bold" /> Channel Name
-        </Label>
-        <ValidationError errorMessage={error} />
-      </div>
+    <div className="flex flex-col gap-2">
+      <label htmlFor="channel-name" className="text-sm font-medium">
+        Channel Name
+      </label>
       <Input
+        id="channel-name"
+        value={name ?? ""}
         onChange={onChange}
-        placeholder={placeholder}
-        type="text"
-        value={name}
+        placeholder={placeholder || "Enter channel name"}
+        className={`border rounded p-2 ${
+          error ? "border-red-500" : "border-gray-300"
+        }`}
+        aria-invalid={!!error}
+        aria-describedby={error ? "channel-name-error" : undefined}
       />
-    </Card>
+    </div>
   );
 };

@@ -15,21 +15,27 @@ import {
 import { toast } from "sonner";
 import { Channel as StreamChannel } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
-
-type UpsertChannelParams = { name: string; members: string[] };
+import { z } from "zod";
 
 type ChannelType = "team" | "messaging";
-
 type UpsertAction = "create" | "update";
 
-export type FormValues = {
-  name: string;
-  members: string[];
-};
+// Zod schemas for form validation
+const FormValuesSchema = z.object({
+  name: z.string().optional(),
+  members: z.array(z.string()).min(1, "At least one member is required"),
+});
 
+const TeamFormValuesSchema = FormValuesSchema.refine((data) => !!data.name, {
+  message: "Channel name is required for team channels",
+  path: ["name"],
+});
+
+export type FormValues = z.infer<typeof FormValuesSchema>;
 export type FormErrors = {
   name: string | null;
   members: string | null;
+  permissions?: string | null;
 };
 
 type AdminPanelFormContext = FormValues & {
@@ -38,7 +44,7 @@ type AdminPanelFormContext = FormValues & {
   handleSubmit: MouseEventHandler<HTMLButtonElement>;
   createChannelType?: ChannelType;
   errors: FormErrors;
-  canUpdateChannel: boolean; // Added to indicate update permission
+  canUpdateChannel: boolean;
 };
 
 const Context = createContext<AdminPanelFormContext>({
@@ -47,7 +53,7 @@ const Context = createContext<AdminPanelFormContext>({
   handleSubmit: () => null,
   members: [],
   name: "",
-  errors: { name: null, members: null },
+  errors: { name: null, members: null, permissions: null },
   canUpdateChannel: false,
 });
 
@@ -89,20 +95,19 @@ export const AdminPanelForm = ({
   onSubmit,
 }: PropsWithChildren<AdminPanelFormProps>) => {
   const { client, channel, setActiveChannel } = useChatContext();
-  const [name, setChannelName] = useState<string>(defaultValues.name);
+  const [name, setChannelName] = useState<string>(defaultValues.name || "");
   const [members, setMembers] = useState<string[]>(defaultValues.members);
   const [errors, setErrors] = useState<FormErrors>({
     name: null,
     members: null,
+    permissions: null,
   });
 
   const createChannelType = getChannelTypeFromWorkspace(workspace);
   const action = getUpsertAction(workspace);
 
-  // Check if user has permission to update channel
   const canUpdateChannel = useCallback(() => {
     if (!channel || action !== "update") return false;
-    // Check user roles or channel permissions
     const userRoles = client.user?.role ? [client.user.role] : [];
     const channelRoles = channel.data?.own_capabilities || [];
     return (
@@ -113,7 +118,7 @@ export const AdminPanelForm = ({
   }, [client.user, channel, action]);
 
   const createChannel = useCallback(
-    async ({ name, members }: UpsertChannelParams) => {
+    async ({ name, members }: FormValues) => {
       if (!createChannelType || members.length === 0) {
         toast.error(
           "Cannot create channel: Invalid type or no members selected"
@@ -144,13 +149,17 @@ export const AdminPanelForm = ({
   );
 
   const updateChannel = useCallback(
-    async ({ name, members }: UpsertChannelParams) => {
+    async ({ name, members }: FormValues) => {
       if (!channel) {
         toast.error("No channel selected for update");
         return;
       }
 
       if (!canUpdateChannel()) {
+        setErrors((prev) => ({
+          ...prev,
+          permissions: "You do not have permission to update this channel",
+        }));
         toast.error("You do not have permission to update this channel");
         return;
       }
@@ -158,8 +167,18 @@ export const AdminPanelForm = ({
       try {
         if (name !== (channel?.data?.name || channel?.id)) {
           await channel.update(
-            { name },
+            { name, demo: channel.data?.demo || "team" },
             { text: `Channel name changed to ${name}` }
+          );
+          // Force refresh of channel list
+          await client.queryChannels(
+            {
+              id: channel.id,
+              type: channel.type,
+              members: { $in: [client.userID ?? ""] },
+            },
+            { last_message_at: -1, updated_at: -1 },
+            { state: true, watch: true }
           );
           toast.success("Channel name updated");
         }
@@ -167,12 +186,20 @@ export const AdminPanelForm = ({
           await channel.addMembers(members);
           toast.success("Members added to channel");
         }
-      } catch (error) {
-        toast.error("Failed to update channel: Insufficient permissions");
+      } catch (error: any) {
+        if (error?.code === 17) {
+          setErrors((prev) => ({
+            ...prev,
+            permissions: "You do not have permission to update this channel",
+          }));
+          toast.error("Failed to update channel: Insufficient permissions");
+        } else {
+          toast.error("Failed to update channel");
+        }
         throw error;
       }
     },
-    [channel, canUpdateChannel]
+    [channel, canUpdateChannel, client]
   );
 
   const validateForm = useCallback(
@@ -185,42 +212,57 @@ export const AdminPanelForm = ({
       action?: UpsertAction;
       createChannelType?: ChannelType;
     }): FormErrors | null => {
-      let errors: FormErrors = { name: null, members: null };
+      let errors: FormErrors = { name: null, members: null, permissions: null };
 
-      if (action === "create") {
-        errors = {
-          name:
-            !values.name && createChannelType === "team"
-              ? "Channel name is required for team channels"
-              : null,
-          members:
-            values.members.length < 2
-              ? "At least one additional member is required"
-              : null,
-        };
-      }
-
-      if (
-        action === "update" &&
-        values.name === defaultValues.name &&
-        values.members.length === 0
-      ) {
-        errors = {
-          name: "Name not changed (change name or add members)",
-          members: "No new members added (change name or add members)",
-        };
+      try {
+        if (action === "create") {
+          if (createChannelType === "team") {
+            TeamFormValuesSchema.parse(values);
+          } else {
+            FormValuesSchema.parse(values);
+          }
+        } else if (action === "update") {
+          FormValuesSchema.parse(values);
+          if (
+            values.name === defaultValues.name &&
+            values.members.length === 0
+          ) {
+            errors = {
+              name: "Name not changed (change name or add members)",
+              members: "No new members added (change name or add members)",
+              permissions: null,
+            };
+          }
+          if (!canUpdateChannel()) {
+            errors.permissions =
+              "You do not have permission to update this channel";
+          }
+        }
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          error.issues.forEach((err) => {
+            // Changed from error.errors to error.issues
+            if (err.path.includes("name")) {
+              errors.name = err.message;
+            }
+            if (err.path.includes("members")) {
+              errors.members = err.message;
+            }
+          });
+        }
       }
 
       return Object.values(errors).some((v) => !!v) ? errors : null;
     },
-    [defaultValues.name]
+    [defaultValues.name, canUpdateChannel]
   );
 
   const handleSubmit: MouseEventHandler<HTMLButtonElement> = useCallback(
     async (event) => {
       event.preventDefault();
+      const values = { name, members };
       const errors = validateForm({
-        values: { name, members },
+        values,
         action,
         createChannelType,
       });
@@ -234,10 +276,10 @@ export const AdminPanelForm = ({
       try {
         let newChannel: StreamChannel | undefined;
         if (action === "create") {
-          newChannel = await createChannel({ name, members });
+          newChannel = await createChannel(values);
         }
         if (action === "update") {
-          await updateChannel({ name, members });
+          await updateChannel(values);
         }
         onSubmit(newChannel);
       } catch (error) {
@@ -260,7 +302,7 @@ export const AdminPanelForm = ({
     (event) => {
       event.preventDefault();
       setChannelName(event.target.value);
-      setErrors((prev) => ({ ...prev, name: null }));
+      setErrors((prev) => ({ ...prev, name: null, permissions: null }));
     },
     []
   );
@@ -269,13 +311,13 @@ export const AdminPanelForm = ({
     setMembers((prev) =>
       checked ? [...prev, value] : prev.filter((id) => id !== value)
     );
-    setErrors((prev) => ({ ...prev, members: null }));
+    setErrors((prev) => ({ ...prev, members: null, permissions: null }));
   }, []);
 
   useEffect(() => {
-    setChannelName(defaultValues.name);
+    setChannelName(defaultValues.name || "");
     setMembers(defaultValues.members);
-    setErrors({ name: null, members: null });
+    setErrors({ name: null, members: null, permissions: null });
   }, [defaultValues]);
 
   return (

@@ -100,8 +100,15 @@ export const UserList = () => {
 
       try {
         const response = await client.queryUsers(
-          // @ts-ignore - $nin not typed
-          { id: { $nin: [...channelMembers, user.userId] } },
+          // { id: { $nin: [user.userId] } },
+          {
+            id: {
+              // @ts-ignore - $nin not typed
+              $nin: !createChannelType // not team / for edit
+                ? [...channelMembers, user.userId]
+                : [user.userId],
+            },
+          },
           { id: 1 },
           { limit: 8 }
         );

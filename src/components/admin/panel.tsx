@@ -49,7 +49,6 @@ export const AdminPanel = ({ setActiveChannel }: AdminPanelProps) => {
       break;
     case WorkspaceKind.Chat:
     default:
-      // For Chat or unknown workspaces, don't render a form
       return null;
   }
 
@@ -59,7 +58,7 @@ export const AdminPanel = ({ setActiveChannel }: AdminPanelProps) => {
       onSubmit={onSubmit}
       defaultValues={defaultFormValues}
     >
-      <div className="w-full h-full p-4">{Form && <Form />}</div>
+      <div className="w-full h-full p-4">{Form ? <Form /> : null}</div>
     </AdminPanelForm>
   );
 };

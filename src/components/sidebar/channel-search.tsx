@@ -2,8 +2,10 @@
 "use client";
 
 import { useWorkspaceController } from "@/context/workspace-controller";
+import { useDebouncedCallback } from "@/hooks/debounce";
 import { WorkspaceFactory } from "@/types";
-import { useCallback, useEffect, useState } from "react";
+import { Search } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Channel, UserResponse } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
 import { Input } from "../ui/input";
@@ -27,14 +29,19 @@ export const ChannelSearch = () => {
   const [query, setQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  // Input ref (nullable) — pass to ResultsDropdown to focus on open
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === "ArrowDown") {
+        event.preventDefault();
         setFocused((prevFocused) => {
           if (prevFocused === undefined || allChannels === undefined) return 0;
           return prevFocused === allChannels.length - 1 ? 0 : prevFocused + 1;
         });
       } else if (event.key === "ArrowUp") {
+        event.preventDefault();
         setFocused((prevFocused) => {
           if (prevFocused === undefined || allChannels === undefined) return 0;
           return prevFocused === 0 ? allChannels.length - 1 : prevFocused - 1;
@@ -136,43 +143,61 @@ export const ChannelSearch = () => {
     }
   };
 
+  const debouncedGetChannels = useDebouncedCallback(getChannels, 300);
+
   const onSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     event.preventDefault();
-    setLoading(true);
+
+    const value = event.target.value;
+    setQuery(value);
     setFocused(undefined);
-    setQuery(event.target.value);
-    if (!event.target.value) {
+
+    if (!value.trim()) {
       setTeamChannels([]);
       setDirectChannels([]);
       setAllChannels([]);
       setLoading(false);
-      setDropdownOpen(false);
       displayWorkspace(WorkspaceFactory.createChat());
+      setDropdownOpen(false);
       return;
     }
-    getChannels(event.target.value);
+
+    setLoading(true);
+    debouncedGetChannels(value);
+  };
+
+  const handleFocus = () => {
+    if (query.trim() !== "") {
+      setDropdownOpen(true);
+    }
   };
 
   return (
     <div className="relative">
-      <div className="">
-        <Input
-          onChange={onSearch}
-          placeholder="Search"
-          type="search"
-          value={query}
-        />
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+        <Search className="size-4" />
       </div>
+
       <ResultsDropdown
+        inputRef={inputRef}
         teamChannels={teamChannels}
         directChannels={directChannels}
         focusedId={focusedId}
         loading={loading}
         setChannel={setChannel}
-        setQuery={setQuery}
         dropdownOpen={dropdownOpen}
         setDropdownOpen={setDropdownOpen}
-      />
+      >
+        <Input
+          ref={inputRef}
+          type="search"
+          value={query}
+          onFocus={handleFocus}
+          className="pl-9 w-full"
+          onChange={onSearch}
+          placeholder="Search channels or users..."
+        />
+      </ResultsDropdown>
     </div>
   );
 };

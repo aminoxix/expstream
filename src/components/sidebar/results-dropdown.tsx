@@ -1,15 +1,13 @@
-// src/components/ResultsDropdown.tsx
 "use client";
 
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import React from "react";
 import { Channel, UserResponse } from "stream-chat";
 import { Avatar, useChatContext } from "stream-chat-react";
 import { channelByUser, ChannelOrUserType, isChannel } from "./utils";
@@ -31,26 +29,27 @@ const SearchResultItem = ({
     const channel = result as Channel;
 
     return (
-      <DropdownMenuItem
-        onSelect={() => setChannel(channel)}
-        className={cn("cursor-pointer", {
+      <div
+        onClick={() => setChannel(channel)}
+        className={cn("cursor-pointer p-2 hover:bg-muted rounded", {
           "bg-muted": focusedId === channel.id,
         })}
       >
-        <span className="text-sm">
-          # {channel?.data?.config?.name || channel.id}
-        </span>
-      </DropdownMenuItem>
+        <span className="text-sm"># {channel?.data?.name || channel.id}</span>
+      </div>
     );
   } else {
     const user = result as UserResponse;
 
     return (
-      <DropdownMenuItem
-        onSelect={() => channelByUser({ client, setActiveChannel, user })}
-        className={cn("flex items-center gap-2 cursor-pointer", {
-          "bg-muted": focusedId === user.id,
-        })}
+      <div
+        onClick={() => channelByUser({ client, setActiveChannel, user })}
+        className={cn(
+          "flex items-center gap-2 cursor-pointer p-2 hover:bg-muted rounded",
+          {
+            "bg-muted": focusedId === user.id,
+          }
+        )}
       >
         <div className="size-8 justify-center items-center flex">
           <Avatar image={user.image} name={user.name || user.id} />
@@ -58,23 +57,26 @@ const SearchResultItem = ({
         <span className="text-sm">
           {user.name || user.id || "Unknown User"}
         </span>
-      </DropdownMenuItem>
+      </div>
     );
   }
 };
 
 type ResultsDropdownProps = {
+  children: React.ReactElement; // single child — the Input component (trigger)
+  inputRef?: React.RefObject<HTMLInputElement | null>; // accept nullable ref
   teamChannels?: Channel[];
   directChannels?: UserResponse[];
   focusedId: string;
   loading: boolean;
   setChannel: (channel: Channel) => void;
-  setQuery: React.Dispatch<React.SetStateAction<string>>;
   dropdownOpen: boolean;
   setDropdownOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 export const ResultsDropdown = ({
+  children,
+  inputRef,
   teamChannels = [],
   directChannels = [],
   focusedId,
@@ -84,19 +86,34 @@ export const ResultsDropdown = ({
   setDropdownOpen,
 }: ResultsDropdownProps) => {
   return (
-    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-      <DropdownMenuContent className="w-64 max-h-96 overflow-y-auto absolute top-2 left-52 mt-1">
-        <DropdownMenuLabel>Channels</DropdownMenuLabel>
-        <DropdownMenuGroup>
-          {loading && !teamChannels.length && (
-            <DropdownMenuItem disabled>
-              <i>Loading...</i>
-            </DropdownMenuItem>
-          )}
+    <Popover open={dropdownOpen} onOpenChange={setDropdownOpen}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent
+        align="center"
+        className="w-64 mt-2 max-h-80 overflow-y-auto rounded-lg shadow-lg border bg-popover z-50 p-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          // Ensure focus stays on input
+          inputRef?.current?.focus();
+        }}
+        onInteractOutside={(event) => {
+          // Prevent closing if interacting with input
+          if (inputRef?.current?.contains(event.target as Node)) {
+            event.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(event) => {
+          // Close dropdown on escape but keep focus on input
+          event.preventDefault();
+          setDropdownOpen(false);
+          inputRef?.current?.focus();
+        }}
+      >
+        <div className="p-2 text-sm font-medium border-b">Channels</div>
+        <div className="p-2">
+          {loading && !teamChannels.length && <i>Loading...</i>}
           {!loading && teamChannels.length === 0 && (
-            <DropdownMenuItem disabled>
-              <i>No channels found</i>
-            </DropdownMenuItem>
+            <i className="text-sm">No channels found</i>
           )}
           {teamChannels.map((channel) => (
             <SearchResultItem
@@ -106,21 +123,15 @@ export const ResultsDropdown = ({
               setChannel={setChannel}
             />
           ))}
-        </DropdownMenuGroup>
+        </div>
 
-        <DropdownMenuSeparator />
+        <Separator />
 
-        <DropdownMenuLabel>Users</DropdownMenuLabel>
-        <DropdownMenuGroup>
-          {loading && !directChannels.length && (
-            <DropdownMenuItem disabled>
-              <i>Loading...</i>
-            </DropdownMenuItem>
-          )}
+        <div className="p-2 text-sm font-medium border-b">Users</div>
+        <div className="p-2">
+          {loading && !directChannels.length && <i>Loading...</i>}
           {!loading && directChannels.length === 0 && (
-            <DropdownMenuItem disabled>
-              <i>No direct messages found</i>
-            </DropdownMenuItem>
+            <i className="text-sm">No direct messages found</i>
           )}
           {directChannels.map((user) => (
             <SearchResultItem
@@ -130,8 +141,8 @@ export const ResultsDropdown = ({
               setChannel={setChannel}
             />
           ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
