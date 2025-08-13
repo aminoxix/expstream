@@ -18,25 +18,22 @@ import {
 import "stream-chat-react/dist/css/v2/index.css";
 import ChannelContainer from "./channel-container";
 import { Sidebar } from "./sidebar";
-import { ResizablePanel, ResizablePanelGroup } from "./ui/resizable";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "./ui/resizable";
 
 export default function MyChat({
   userId,
-  userName,
-  isStreamer,
-  setChatExpanded,
   selectedChannel,
 }: {
   userId: string;
-  userName: string;
-  isStreamer: boolean;
-  setChatExpanded?: (expanded: boolean) => void;
   selectedChannel?: StreamChannel | null;
 }) {
   const client = useStreamChat();
   const { channel: activeChannel } = useChatContext();
   const [channel, setChannel] = useState<StreamChannel | undefined>(undefined);
-  const [customColor, setCustomColor] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
 
   // Sync channel state with selectedChannel and activeChannel
@@ -52,7 +49,6 @@ export default function MyChat({
   useEffect(() => {
     const storedColor = localStorage.getItem(`color_${userId}`);
     const newColor = storedColor || createCustomColor();
-    setCustomColor(newColor);
     localStorage.setItem(`color_${userId}`, newColor);
   }, [userId]);
 
@@ -104,10 +100,10 @@ export default function MyChat({
                 <Sidebar setActiveChannel={setChannel} />
               </div>
             </ResizablePanel>
+            <ResizableHandle withHandle className="bg-border" />
             <ResizablePanel className="flex-1 min-w-0">
               <StreamChannelComponent channel={channel}>
                 <ChannelContainer
-                  setChatExpanded={setChatExpanded}
                   submitHandler={submitHandler}
                   setActiveChannel={setChannel}
                 />

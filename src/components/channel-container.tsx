@@ -17,11 +17,13 @@ import {
   SimpleReactionsList,
   Thread,
   ThreadHeader,
+  useChatContext,
   Window,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
 import { AdminPanel } from "./admin/panel";
 import { EmptyChannel } from "./empty-channel";
+import { TeamMessage } from "./message";
 import { PinnedMessageList } from "./pinned-message-list";
 import { TeamChannelHeader } from "./team-channel-header";
 
@@ -52,6 +54,7 @@ function ChannelContainer({
   submitHandler,
   setActiveChannel,
 }: IChannelContainer) {
+  const { channel } = useChatContext();
   const { activeWorkspace } = useWorkspaceController();
 
   if (isAdminWorkspace(activeWorkspace.kind)) {
@@ -61,6 +64,7 @@ function ChannelContainer({
   return (
     <div className="p-4 w-full">
       <Channel
+        channel={channel}
         EmptyStateIndicator={EmptyChannel}
         LoadingIndicator={LoadingIndicator}
         ReactionsList={SimpleReactionsList}
@@ -68,7 +72,7 @@ function ChannelContainer({
       >
         <Window>
           <TeamChannelHeader />
-          <MessageList disableQuotedMessages={true} />
+          <MessageList disableQuotedMessages={true} Message={TeamMessage} />
           <MessageInput
             minRows={1}
             maxRows={8}

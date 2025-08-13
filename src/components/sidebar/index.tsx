@@ -156,6 +156,8 @@ const MessagingChannelsList = ({
 export const Sidebar = ({ setActiveChannel }: SidebarProps) => {
   return (
     <aside className="flex flex-col h-full bg-background">
+      <h1 className="font-bold text-2xl text-gray-400">HOAshare Chat</h1>
+
       <div className="p-3">
         <ChannelSearch />
       </div>

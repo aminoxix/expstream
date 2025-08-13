@@ -86,9 +86,7 @@ export default function Dashboard() {
       <section className="flex-1">
         <Chat
           userId={user.userId}
-          userName={user.fullName || user.userId}
-          isStreamer={true}
-          setChatExpanded={setChatExpanded}
+          // userName={user.fullName || user.userId}
           selectedChannel={selectedChannel}
         />
       </section>
