@@ -14,10 +14,10 @@ import {
   DotsThreeOutlineVerticalIcon,
   SmileyIcon,
 } from "@phosphor-icons/react";
+import Link from "next/link";
 import React, { ComponentRef, useMemo, useRef } from "react";
-import type { LocalMessage } from "stream-chat";
+import type { LocalMessage, Attachment as StreamAttachment } from "stream-chat";
 import {
-  Attachment,
   DialogAnchor,
   EditMessageForm,
   isOnlyEmojis,
@@ -40,12 +40,112 @@ import {
   useMessageContext,
   useTranslationContext,
 } from "stream-chat-react";
+import { Card, CardContent } from "./ui/card";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+
+const CustomAttachment = ({
+  attachments,
+  actionHandler,
+}: {
+  attachments: StreamAttachment[];
+  actionHandler?: (
+    name: string,
+    value: string,
+    event: React.BaseSyntheticEvent
+  ) => void | Promise<void>;
+}) => {
+  return (
+    <div className="flex flex-col gap-2">
+      {attachments.map((attachment, index) => {
+        if (attachment.og_scrape_url) {
+          return (
+            <div key={index} className="max-w-[300px]">
+              <Card>
+                <CardContent>
+                  <Link
+                    href={attachment.title_link || ""}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline block truncate"
+                    style={{ maxWidth: "300px" }}
+                    aria-label={`Link: ${
+                      attachment.title || attachment.og_scrape_url
+                    }`}
+                  >
+                    {attachment.image_url && (
+                      <img
+                        src={attachment.image_url}
+                        alt={attachment.title || "Link preview"}
+                        className="object-cover w-full h-[100px] rounded-lg mt-1"
+                        aria-label={`Link preview image: ${
+                          attachment.title || "Link"
+                        }`}
+                      />
+                    )}
+                    <p>{attachment.author_name}</p>
+                    <p className="font-semibold">{attachment.title}</p>
+                    <p className="truncate">{attachment.text}</p>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        } else if (attachment.type === "image") {
+          return (
+            <div
+              key={index}
+              className="relative w-full max-w-[300px] h-[200px]"
+            >
+              <img
+                src={attachment.image_url || attachment.thumb_url}
+                alt={attachment.title || "Attachment"}
+                className="object-contain w-full h-full rounded-lg"
+                style={{ maxWidth: "300px", maxHeight: "200px" }}
+                aria-label={`Image attachment: ${attachment.title || "Image"}`}
+              />
+            </div>
+          );
+        } else if (attachment.type === "file") {
+          return (
+            <div
+              key={index}
+              className="flex items-center gap-2 p-2 rounded-lg max-w-[300px]"
+            >
+              <a
+                href={attachment.asset_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline truncate"
+                style={{ maxWidth: "250px" }}
+                aria-label={`File attachment: ${attachment.title || "File"}`}
+              >
+                {attachment.title || "File"}
+              </a>
+              {actionHandler && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) =>
+                    actionHandler("download", attachment.asset_url ?? "", e)
+                  }
+                  aria-label={`Download ${attachment.title || "file"}`}
+                >
+                  Download
+                </Button>
+              )}
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+};
 
 export const TeamMessage = () => {
   const {
@@ -67,29 +167,6 @@ export const TeamMessage = () => {
   const { t, userLanguage } = useTranslationContext("MessageTeam");
   const { client } = useChatContext();
   const { closePinnedMessageListOpen } = useWorkspaceController();
-
-  const messageActions = getMessageActions();
-  const shouldShowReplies =
-    messageActions.indexOf(MESSAGE_ACTIONS.reply) > -1 && !threadList;
-  const canReact = messageActions.indexOf(MESSAGE_ACTIONS.react) > -1;
-
-  const isOwnMessage = message.user?.id === client.userID; // Check if message is from current user
-
-  const messageTextToRender =
-    message.i18n?.[`${userLanguage}_text` as `${string}_text`] || message.text;
-  const messageMentionedUsersItem = message.mentioned_users;
-
-  const messageText = useMemo(
-    () => renderText(messageTextToRender, messageMentionedUsersItem),
-    [messageMentionedUsersItem, messageTextToRender, renderText]
-  );
-
-  const handleOpenThread = (event: React.BaseSyntheticEvent) => {
-    closePinnedMessageListOpen();
-    handleOpenThreadContext(event);
-  };
-
-  const firstGroupStyle = groupStyles ? groupStyles[0] : "single";
   const buttonRef = useRef<ComponentRef<"button">>(null);
   const reactionSelectorDialogId = `reaction-selector--${message.id}`;
   const reactionSelectorDialog = useDialog({ id: reactionSelectorDialogId });
@@ -100,66 +177,89 @@ export const TeamMessage = () => {
     `message-actions--${message.id}`
   );
 
+  const messageActions = getMessageActions();
+  const shouldShowReplies =
+    messageActions.indexOf(MESSAGE_ACTIONS.reply) > -1 && !threadList;
+  const canReact = messageActions.indexOf(MESSAGE_ACTIONS.react) > -1;
+  const isOwnMessage = message.user?.id === client.userID;
+  const messageTextToRender =
+    message.i18n?.[`${userLanguage}_text` as `${string}_text`] || message.text;
+  const messageMentionedUsersItem = message.mentioned_users;
+  const messageText = useMemo(
+    () => renderText(messageTextToRender, messageMentionedUsersItem),
+    [messageMentionedUsersItem, messageTextToRender, renderText]
+  );
+  const rootClasses = useMemo(
+    () =>
+      [
+        "relative flex gap-2 p-2 rounded-lg group",
+        isOwnMessage ? "flex-row-reverse" : "flex-row",
+        message.pinned ? "bg-blue-50 dark:bg-blue-900" : "",
+        message.status ? `message-team--${message.status}` : "",
+        message.type ? `message-team--${message.type}` : "",
+        message.attachments?.length ? "has-attachment" : "",
+        threadList ? "thread-list" : "",
+        (groupStyles && groupStyles[0] === "top") ||
+        (groupStyles && groupStyles[0] === "single")
+          ? "items-start"
+          : "items-end",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    [message, groupStyles, threadList, isOwnMessage]
+  );
+
+  // Early return for deleted message
   if (message.deleted_at) {
     return <MessageDeleted message={message} />;
   }
 
+  // Early return for editing mode
   if (editing) {
     return (
       <div
         className={`flex gap-2 p-2 rounded-lg ${
           isOwnMessage ? "flex-row-reverse" : "flex-row"
         } ${
-          firstGroupStyle === "top" || firstGroupStyle === "single"
+          groupStyles &&
+          (groupStyles[0] === "top" || groupStyles[0] === "single")
             ? "items-start"
             : "items-end"
         }`}
         data-testid="message-team-edit"
       >
-        {(firstGroupStyle === "top" || firstGroupStyle === "single") && (
-          <Avatar className="w-8 h-8 rounded-md">
-            <AvatarImage src={message.user?.image} alt={message.user?.name} />
-            <AvatarFallback className="rounded-md">
-              {message.user?.name?.[0] || message.user?.id?.[0]}
-            </AvatarFallback>
-          </Avatar>
-        )}
+        {groupStyles &&
+          (groupStyles[0] === "top" || groupStyles[0] === "single") && (
+            <Avatar className="w-8 h-8 rounded-md">
+              <AvatarImage src={message.user?.image} alt={message.user?.name} />
+              <AvatarFallback className="rounded-md">
+                {message.user?.name?.[0] || message.user?.id?.[0]}
+              </AvatarFallback>
+            </Avatar>
+          )}
         <div className="flex-1">
           <MessageInput
-            clearEditingState={clearEditingState}
+            audioRecordingEnabled
             Input={EditMessageForm}
+            clearEditingState={clearEditingState}
           />
         </div>
       </div>
     );
   }
 
-  const rootClasses = useMemo(
-    () =>
-      [
-        "relative flex gap-2 p-2 rounded-lg group",
-        isOwnMessage ? "flex-row-reverse" : "flex-row", // Align own messages right, others left
-        message.pinned ? "bg-blue-50 dark:bg-blue-900" : "",
-        message.status ? `message-team--${message.status}` : "",
-        message.type ? `message-team--${message.type}` : "",
-        message.attachments?.length ? "has-attachment" : "",
-        threadList ? "thread-list" : "",
-        firstGroupStyle === "top" || firstGroupStyle === "single"
-          ? "items-start"
-          : "items-end",
-      ]
-        .filter(Boolean)
-        .join(" "),
-    [message, firstGroupStyle, threadList, isOwnMessage]
-  );
+  const handleOpenThread = (event: React.BaseSyntheticEvent) => {
+    closePinnedMessageListOpen();
+    handleOpenThreadContext(event);
+  };
 
   return (
     <div className={message.pinned ? "border-l-4 border-blue-500 pl-2" : ""}>
       {message.pinned && <PinIndicator message={message} />}
       <div className={rootClasses} data-testid="message-team">
         <div className="w-8 flex-shrink-0">
-          {firstGroupStyle === "top" ||
-          firstGroupStyle === "single" ||
+          {(groupStyles &&
+            (groupStyles[0] === "top" || groupStyles[0] === "single")) ||
           initialMessage ? (
             <Avatar className="w-8 h-8 cursor-pointer rounded-md">
               <AvatarImage src={message.user?.image} alt={message.user?.name} />
@@ -174,10 +274,10 @@ export const TeamMessage = () => {
         <div
           className={`flex-1 flex flex-col gap-1 ${
             isOwnMessage ? "items-end" : "items-start"
-          }`} // Align content based on message owner
+          }`}
         >
-          {(firstGroupStyle === "top" ||
-            firstGroupStyle === "single" ||
+          {((groupStyles &&
+            (groupStyles[0] === "top" || groupStyles[0] === "single")) ||
             initialMessage) && (
             <div className="flex items-center gap-2 text-sm">
               <div
@@ -206,79 +306,35 @@ export const TeamMessage = () => {
             onMouseOver={onMentionsHoverMessage}
           >
             {message.quoted_message && <QuotedMessage />}
-            <div className="">
-              {!initialMessage &&
-                message.status !== "sending" &&
-                message.status !== "failed" &&
-                message.type !== "system" &&
-                message.type !== "ephemeral" &&
-                message.type !== "error" && (
-                  <div
-                    className={`absolute top-2 ${
-                      isOwnMessage ? "left-0" : "right-0"
-                    } flex group-hover:opacity-100 transition-opacity ${
-                      reactionSelectorDialogIsOpen || messageActionsDialogIsOpen
-                        ? "opacity-100"
-                        : "opacity-0"
-                    }`}
-                    data-testid="message-team-actions"
-                  >
-                    {canReact && (
-                      <>
-                        <DialogAnchor
-                          trapFocus
-                          id={reactionSelectorDialogId}
-                          referenceElement={buttonRef.current}
-                        >
-                          <ReactionSelector />
-                        </DialogAnchor>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          ref={buttonRef}
-                          data-testid="message-reaction-action"
-                          aria-expanded={reactionSelectorDialogIsOpen}
-                          aria-label={t("aria/Open Reaction Selector")}
-                          onClick={() => reactionSelectorDialog?.toggle()}
-                        >
-                          <SmileyIcon className="size-5" />
-                        </Button>
-                      </>
-                    )}
-                    {shouldShowReplies && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        title="Start a thread"
-                        onClick={handleOpenThread}
-                        data-testid="message-team-thread-icon"
-                      >
-                        <ArrowBendDoubleUpLeftIcon className="size-5" />
-                      </Button>
-                    )}
-                    <div className="size-9 flex items-center justify-center">
-                      <MessageActions
-                        ActionsIcon={DotsThreeOutlineVerticalIcon}
-                      />
-                    </div>
-                  </div>
-                )}
+            <div
+              className={`flex flex-col gap-2 ${
+                isOwnMessage ? "items-end" : "items-start"
+              }`}
+            >
+              {/* Attachments at the top */}
+              {message.attachments?.length ? (
+                <CustomAttachment
+                  actionHandler={handleAction}
+                  attachments={message.attachments}
+                />
+              ) : null}
+              {/* Message text below attachments */}
               {message.text && (
                 <div className="break-words" data-testid="message-team-message">
                   {messageText}
                 </div>
               )}
-              {!message.text && message.attachments?.length && Attachment ? (
-                <Attachment
-                  actionHandler={handleAction}
-                  attachments={message.attachments}
-                />
-              ) : null}
+              {/* Reactions below status for text-only messages */}
               {message.latest_reactions?.length &&
               message.text !== "" &&
               canReact ? (
                 <ReactionsList />
               ) : null}
+              {/* Status below text */}
+              <div className="flex text-xs text-blue-500 dark:text-blue-400">
+                <CustomMessageStatus messageType="team" />
+              </div>
+              {/* Failed message button */}
               {message.status === "failed" && (
                 <Button
                   variant="destructive"
@@ -296,21 +352,16 @@ export const TeamMessage = () => {
                     : t("Message Failed · Unauthorized")}
                 </Button>
               )}
+              {/* Reactions for attachment-only messages */}
+              {message.latest_reactions &&
+              message.latest_reactions.length !== 0 &&
+              message.text === "" &&
+              canReact ? (
+                <ReactionsList />
+              ) : null}
             </div>
           </div>
-          <div className="flex text-xs text-blue-500 dark:text-blue-400">
-            <CustomMessageStatus messageType="team" />
-          </div>
-          {message.text && message.attachments?.length && Attachment ? (
-            <Attachment
-              actionHandler={handleAction}
-              attachments={message.attachments}
-            />
-          ) : null}
-          {message.latest_reactions &&
-            message.latest_reactions.length !== 0 &&
-            message.text === "" &&
-            canReact && <ReactionsList />}
+          {/* Thread replies count */}
           {!threadList && (
             <div className="flex items-center gap-1 text-xs text-gray-500 hover:underline">
               {message.reply_count ? <ArrowBendUpLeftIcon /> : null}
@@ -320,6 +371,61 @@ export const TeamMessage = () => {
               />
             </div>
           )}
+          {/* Message actions (reactions, thread, etc.) */}
+          {!initialMessage &&
+            message.status !== "sending" &&
+            message.status !== "failed" &&
+            message.type !== "system" &&
+            message.type !== "ephemeral" &&
+            message.type !== "error" && (
+              <div
+                className={`absolute top-1 text-gray-400 ${
+                  isOwnMessage ? "left-0" : "right-0"
+                } flex group-hover:opacity-100 transition-opacity ${
+                  reactionSelectorDialogIsOpen || messageActionsDialogIsOpen
+                    ? "opacity-100"
+                    : "opacity-0"
+                }`}
+                data-testid="message-team-actions"
+              >
+                {canReact && (
+                  <>
+                    <DialogAnchor
+                      trapFocus
+                      id={reactionSelectorDialogId}
+                      referenceElement={buttonRef.current}
+                    >
+                      <ReactionSelector />
+                    </DialogAnchor>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      ref={buttonRef}
+                      data-testid="message-reaction-action"
+                      aria-expanded={reactionSelectorDialogIsOpen}
+                      aria-label={t("aria/Open Reaction Selector")}
+                      onClick={() => reactionSelectorDialog?.toggle()}
+                    >
+                      <SmileyIcon className="size-5" />
+                    </Button>
+                  </>
+                )}
+                {shouldShowReplies && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    title="Start a thread"
+                    onClick={handleOpenThread}
+                    data-testid="message-team-thread-icon"
+                  >
+                    <ArrowBendDoubleUpLeftIcon className="size-5 text-gray-400" />
+                  </Button>
+                )}
+                <div className="size-9 flex items-center justify-center">
+                  <MessageActions ActionsIcon={DotsThreeOutlineVerticalIcon} />
+                </div>
+              </div>
+            )}
         </div>
       </div>
     </div>
