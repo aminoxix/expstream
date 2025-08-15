@@ -18,6 +18,7 @@ import Link from "next/link";
 import React, { ComponentRef, useMemo, useRef } from "react";
 import type { LocalMessage, Attachment as StreamAttachment } from "stream-chat";
 import {
+  renderText as defaultRenderText,
   DialogAnchor,
   EditMessageForm,
   isOnlyEmojis,
@@ -59,6 +60,7 @@ const CustomAttachment = ({
     event: React.BaseSyntheticEvent
   ) => void | Promise<void>;
 }) => {
+  console.log("[TeamMessage] Rendering attachments:", attachments);
   return (
     <div className="flex flex-col gap-2">
       {attachments.map((attachment, index) => {
@@ -161,7 +163,6 @@ export const TeamMessage = () => {
     onMentionsClickMessage,
     onMentionsHoverMessage,
     onUserClick,
-    renderText = (text: string | undefined) => text,
     threadList,
   } = useMessageContext("MessageTeam");
   const { t, userLanguage } = useTranslationContext("MessageTeam");
@@ -186,8 +187,8 @@ export const TeamMessage = () => {
     message.i18n?.[`${userLanguage}_text` as `${string}_text`] || message.text;
   const messageMentionedUsersItem = message.mentioned_users;
   const messageText = useMemo(
-    () => renderText(messageTextToRender, messageMentionedUsersItem),
-    [messageMentionedUsersItem, messageTextToRender, renderText]
+    () => defaultRenderText(messageTextToRender, messageMentionedUsersItem),
+    [messageMentionedUsersItem, messageTextToRender]
   );
   const rootClasses = useMemo(
     () =>
@@ -239,7 +240,6 @@ export const TeamMessage = () => {
           )}
         <div className="flex-1">
           <MessageInput
-            audioRecordingEnabled
             Input={EditMessageForm}
             clearEditingState={clearEditingState}
           />
@@ -320,7 +320,10 @@ export const TeamMessage = () => {
               ) : null}
               {/* Message text below attachments */}
               {message.text && (
-                <div className="break-words" data-testid="message-team-message">
+                <div
+                  className="break-words markdown-content"
+                  data-testid="message-team-message"
+                >
                   {messageText}
                 </div>
               )}

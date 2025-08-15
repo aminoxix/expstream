@@ -22,6 +22,7 @@ import {
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
 import { AdminPanel } from "./admin/panel";
+import { TeamMessageInput } from "./custom-input";
 import { EmptyChannel } from "./empty-channel";
 import { TeamMessage } from "./message";
 import { PinnedMessageList } from "./pinned-message-list";
@@ -76,6 +77,7 @@ function ChannelContainer({
           <MessageInput
             minRows={1}
             maxRows={8}
+            Input={TeamMessageInput}
             overrideSubmitHandler={submitHandler}
           />
         </Window>
