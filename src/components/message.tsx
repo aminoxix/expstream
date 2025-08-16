@@ -31,6 +31,7 @@ import {
   MessageStatusProps,
   MessageTimestamp,
   PinIcon,
+  Poll,
   QuotedMessage,
   ReactionSelector,
   ReactionsList,
@@ -169,6 +170,7 @@ export const TeamMessage = () => {
   const { client } = useChatContext();
   const { closePinnedMessageListOpen } = useWorkspaceController();
   const buttonRef = useRef<ComponentRef<"button">>(null);
+  const poll = message.poll_id && client.polls.fromState(message.poll_id);
   const reactionSelectorDialogId = `reaction-selector--${message.id}`;
   const reactionSelectorDialog = useDialog({ id: reactionSelectorDialogId });
   const reactionSelectorDialogIsOpen = useDialogIsOpen(
@@ -333,6 +335,7 @@ export const TeamMessage = () => {
               canReact ? (
                 <ReactionsList />
               ) : null}
+              {poll ? <Poll poll={poll} /> : null}
               {/* Status below text */}
               <div className="flex text-xs text-blue-500 dark:text-blue-400">
                 <CustomMessageStatus messageType="team" />

@@ -10,7 +10,6 @@ import { Channel } from "stream-chat";
 
 export default function Dashboard() {
   const client = useStreamChat();
-  const [chatExpanded, setChatExpanded] = useState(true);
   const [user, setUser] = useState<{
     userId: string;
     fullName?: string;
