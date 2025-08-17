@@ -385,7 +385,11 @@ export const TeamMessageInput = () => {
   );
 
   return (
-    <div {...getRootProps()} className="relative" aria-live="polite">
+    <div
+      {...getRootProps()}
+      className="relative -mt-3 border-t"
+      aria-live="polite"
+    >
       {isDragActive && (
         <div
           className={`
