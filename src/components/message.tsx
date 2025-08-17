@@ -16,7 +16,10 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import React, { ComponentRef, useMemo, useRef } from "react";
-import type { LocalMessage, Attachment as StreamAttachment } from "stream-chat";
+import {
+  type LocalMessage,
+  type Attachment as StreamAttachment,
+} from "stream-chat";
 import {
   renderText as defaultRenderText,
   DialogAnchor,
@@ -179,6 +182,7 @@ export const TeamMessage = () => {
   const messageActionsDialogIsOpen = useDialogIsOpen(
     `message-actions--${message.id}`
   );
+  // const [pollDialogOpen, setPollDialogOpen] = useState(false);
 
   const messageActions = getMessageActions();
   const shouldShowReplies =
@@ -254,6 +258,12 @@ export const TeamMessage = () => {
     closePinnedMessageListOpen();
     handleOpenThreadContext(event);
   };
+
+  // const handleEditPoll = () => {
+  //   if (poll) {
+  //     setPollDialogOpen(true);
+  //   }
+  // };
 
   return (
     <div className={message.pinned ? "border-l-4 border-blue-500 pl-2" : ""}>
@@ -335,7 +345,43 @@ export const TeamMessage = () => {
               canReact ? (
                 <ReactionsList />
               ) : null}
-              {poll ? <Poll poll={poll} /> : null}
+              <div>
+                {poll ? <Poll poll={poll} /> : null}
+                {/* <div>
+                  {poll && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger>
+                        <DotsThreeIcon className="w-4 h-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onSelect={handleEditPoll}>
+                          Edit Poll
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+                <CustomPollCreationDialog
+                  isOpen={pollDialogOpen}
+                  onClose={() => setPollDialogOpen(false)}
+                  pollId={message.poll?.id}
+                  initialData={{
+                    name: message.poll?.name || "",
+                    description: message.poll?.description || "",
+                    options: message.poll?.options?.map((opt: any) => ({
+                      text: opt.text,
+                    })) || [{ text: "" }, { text: "" }],
+                    allow_answers: message.poll?.allow_answers ?? true,
+                    allow_user_suggested_options:
+                      message.poll?.allow_user_suggested_options ?? false,
+                    enforce_unique_vote:
+                      message.poll?.enforce_unique_vote ?? false,
+                    voting_visibility:
+                      message.poll?.voting_visibility ||
+                      VotingVisibility.public,
+                  }}
+                /> */}
+              </div>
               {/* Status below text */}
               <div className="flex text-xs text-blue-500 dark:text-blue-400">
                 <CustomMessageStatus messageType="team" />

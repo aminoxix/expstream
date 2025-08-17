@@ -29,6 +29,7 @@ import {
   useStateStore,
 } from "stream-chat-react";
 import { z } from "zod";
+import { CustomPollCreationDialog } from "./poll/dialog";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -85,14 +86,15 @@ const customComposerDataSelector = (state: any) => ({
 export const TeamMessageInput = () => {
   const { client } = useChatContext();
   const { channel } = useChannelStateContext();
-  const messageComposer = useMessageComposer();
   const { textareaRef: streamTextareaRef } = useMessageInputContext();
+  const messageComposer = useMessageComposer();
   const hasSendableData = useMessageComposerHasSendableData();
   const { isComposingGiphyText } = useStateStore(
     messageComposer.customDataManager.state,
     customComposerDataSelector
   );
   const [emojiPickerIsOpen, setEmojiPickerIsOpen] = useState(false);
+  const [pollDialogOpen, setPollDialogOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -327,6 +329,16 @@ export const TeamMessageInput = () => {
               file_url: URL.createObjectURL(file),
             })),
         };
+
+        // Prevent sending empty messages
+        if (!messageData.text.trim() && !messageData.attachments.length) {
+          console.log(
+            "[TeamMessageInput] Skipped sending empty message:",
+            messageData
+          );
+          return;
+        }
+
         console.log("[TeamMessageInput] Sending message:", messageData);
         await channel.sendMessage(messageData);
         reset({ text: "" });
@@ -355,6 +367,22 @@ export const TeamMessageInput = () => {
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [emojiPickerIsOpen]);
+
+  // Handle poll creation dialog
+  const handleOpenPollDialog = useCallback(
+    (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setPollDialogOpen(true);
+      // Clear message composer text to prevent empty message
+      if (messageComposer.textComposer?.setText) {
+        messageComposer.textComposer.setText("");
+      }
+      setValue("text", "");
+      console.log("[TeamMessageInput] Opening custom poll creation dialog");
+    },
+    [messageComposer.textComposer, setValue]
+  );
 
   return (
     <div {...getRootProps()} className="relative" aria-live="polite">
@@ -433,6 +461,12 @@ export const TeamMessageInput = () => {
                   messageComposer.textComposer.setText(e.target.value);
                 }
               }}
+              onKeyDown={(e) => {
+                // Prevent Enter from submitting form when dialog is open
+                if (e.key === "Enter" && !e.shiftKey && pollDialogOpen) {
+                  e.preventDefault();
+                }
+              }}
             />
           )}
         />
@@ -507,17 +541,17 @@ export const TeamMessageInput = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" type="button" aria-label="More options">
-                  <DotsThreeIcon className="size-4" />
+                  <DotsThreeIcon className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuLabel>More Options</DropdownMenuLabel>
                 <DropdownMenuItem
-                  onSelect={() => null}
+                  onSelect={handleOpenPollDialog}
                   aria-label="Create poll"
                 >
-                  <ListChecksIcon className="size-4 mr-2" />
-                  Poll
+                  <ListChecksIcon className="w-4 h-4 mr-2" />
+                  Create Poll
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -540,6 +574,10 @@ export const TeamMessageInput = () => {
             <Picker theme="light" onEmojiSelect={handleEmojiSelect} />
           </div>
         )}
+        <CustomPollCreationDialog
+          isOpen={pollDialogOpen}
+          onClose={() => setPollDialogOpen(false)}
+        />
       </form>
     </div>
   );
@@ -576,6 +614,14 @@ export const ThreadMessageInput = () => {
               file_url: URL.createObjectURL(file),
             })),
         };
+        // Prevent sending empty messages
+        if (!messageData.text.trim() && !messageData.attachments.length) {
+          console.log(
+            "[ThreadMessageInput] Skipped sending empty message:",
+            messageData
+          );
+          return;
+        }
         console.log("[ThreadMessageInput] Sending message:", messageData);
         await channel.sendMessage(messageData);
         setText("");
