@@ -1,7 +1,7 @@
 // src/components/edit-channel.tsx
 "use client";
 
-import { useWorkspaceController } from "../../context/workspace-controller";
+import { useWorkspaceController } from "@/context/workspace-controller";
 import { ChannelNameInputField } from "./channel-name-input";
 import { useAdminPanelFormState } from "./context/form";
 import { AdminPanelFooter } from "./footer";
@@ -19,7 +19,7 @@ export const EditChannel = () => {
       <div>
         <ChannelNameInputField
           name={name}
-          error={errors.name || errors.permissions || null} // Coerce to string | null
+          error={errors.name || errors.permissions || null}
           onChange={handleInputChange}
         />
         {(errors.name || errors.permissions) && (

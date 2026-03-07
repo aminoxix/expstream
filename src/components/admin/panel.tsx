@@ -1,11 +1,12 @@
 // src/components/admin-panel.tsx
 "use client";
 
+import { useWorkspaceController } from "@/context/workspace-controller";
 import { WorkspaceFactory, WorkspaceKind } from "@/types";
+import { getChannelDisplayName } from "@/utils/helpers";
 import { useCallback } from "react";
 import { Channel as StreamChannel } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
-import { useWorkspaceController } from "../../context/workspace-controller";
 import { AdminPanelForm, FormValues } from "./context/form";
 import { CreateChannel } from "./create-channel";
 import { EditChannel } from "./edit-channel";
@@ -25,7 +26,7 @@ export const AdminPanel = ({ setActiveChannel }: AdminPanelProps) => {
         setActiveChannel(newChannel);
       }
     },
-    [displayWorkspace, setActiveChannel]
+    [displayWorkspace, setActiveChannel],
   );
 
   let defaultFormValues: FormValues = { name: "", members: [] };
@@ -35,15 +36,19 @@ export const AdminPanel = ({ setActiveChannel }: AdminPanelProps) => {
     case WorkspaceKind.AdminChannelCreateTeam:
     case WorkspaceKind.AdminChannelCreateMessaging:
       defaultFormValues = {
-        members: client.userID ? [client.userID] : [],
+        members: client.user?.id ? [client.user?.id] : [],
         name: "",
       };
       Form = CreateChannel;
       break;
     case WorkspaceKind.AdminChannelEdit:
       defaultFormValues = {
-        members: [],
-        name: channel?.data?.name || channel?.id || "",
+        members: channel?.state?.members
+          ? Object.keys(channel.state.members).filter(
+              (id) => id !== client.user?.id,
+            )
+          : [],
+        name: getChannelDisplayName(channel!) || "random",
       };
       Form = EditChannel;
       break;

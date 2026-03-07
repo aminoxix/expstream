@@ -1,190 +1,185 @@
 // src/components/sidebar/index.tsx
 "use client";
 
-import { useEffect, useMemo } from "react";
-import type {
-  Channel,
-  ChannelFilters,
-  ChannelSort,
-  Channel as StreamChannel,
-} from "stream-chat";
-import { ChannelList, useChatContext } from "stream-chat-react";
-import { ScrollArea } from "../ui/scroll-area";
-import { Separator } from "../ui/separator";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  CHANNEL_TYPES,
+  MESSAGING_CHANNEL_CONFIG,
+  TEAM_CHANNEL_CONFIG,
+  UI_MESSAGES,
+} from "@/config";
+import { useWorkspaceController } from "@/context/workspace-controller";
+import { useChannelListManager } from "@/hooks/use-channel-list-manager";
+import { usePaginatedChannels } from "@/hooks/use-paginated-channels";
+import { WorkspaceFactory } from "@/types";
+import { PlusCircleIcon } from "@phosphor-icons/react";
+import { useCallback, useMemo } from "react";
+import type { Channel as StreamChannel } from "stream-chat";
+import { useChatContext } from "stream-chat-react";
 import { ChannelPreview } from "./channel-preview";
 import { ChannelSearch } from "./channel-search";
-import { TeamChannelList } from "./team-channel-list";
 
-interface SidebarProps {
+interface EnhancedSidebarProps {
   setActiveChannel: React.Dispatch<
     React.SetStateAction<StreamChannel | undefined>
   >;
+  currentUserId?: string;
 }
 
-const getFilters = (userId: string | undefined): ChannelFilters[] => [
-  { type: "team", demo: "team", members: { $in: [userId ?? ""] } },
-  { type: "messaging", demo: "team", members: { $in: [userId ?? ""] } },
-];
+interface ChannelListSectionProps {
+  setActiveChannel: EnhancedSidebarProps["setActiveChannel"];
+  channelType: "team" | "messaging";
+}
 
-const options = { state: true, watch: true, presence: true, limit: 10 };
-const sort: ChannelSort = { last_message_at: -1, updated_at: -1 };
+const EmptyGroupChannelListIndicator = () => (
+  <div className="text-xs">{UI_MESSAGES.EMPTY_STATES.GROUP_CHANNELS}</div>
+);
 
-const customChannelTeamFilter = (channels: Channel[]) => {
-  console.log(
-    "Team channels",
-    channels.filter((channel) => channel.type === "team")
-  );
-  return channels.filter((channel) => channel.type === "team");
-};
+const EmptyDMChannelListIndicator = () => (
+  <div className="text-xs">{UI_MESSAGES.EMPTY_STATES.DM_CHANNELS}</div>
+);
 
-const customChannelMessagingFilter = (channels: Channel[]) => {
-  console.log(
-    "Messaging channels",
-    channels.filter((channel) => channel.type === "messaging")
-  );
-  return channels.filter((channel) => channel.type === "messaging");
-};
-
-const TeamChannelsList = ({
+function ChannelListSection({
   setActiveChannel,
-}: {
-  setActiveChannel: SidebarProps["setActiveChannel"];
-}) => {
+  channelType,
+}: ChannelListSectionProps) {
   const { client } = useChatContext();
-  const filters = useMemo(() => getFilters(client.userID), [client.userID]);
+  const { displayWorkspace } = useWorkspaceController();
 
-  useEffect(() => {
-    if (!client.userID) return;
+  const handleAddChannelClick = useCallback(() => {
+    const workspace = WorkspaceFactory.createAdminChannelCreate(channelType);
+    displayWorkspace(workspace);
+  }, [channelType, displayWorkspace]);
 
-    const refreshChannels = async () => {
-      try {
-        await client.queryChannels(filters[0], sort, options);
-        console.log("[TeamChannelsList] Channels refreshed");
-      } catch (err) {
-        console.error("[TeamChannelsList] Failed to refresh channels:", err);
-      }
-    };
-    refreshChannels();
+  const { filters } = useChannelListManager({
+    client,
+    userId: client.user?.id,
+    channelType,
+    autoRefresh: false,
+  });
 
-    // Listen for channel creation and update events
-    const handleChannelEvent = () => {
-      refreshChannels();
-    };
-    client.on("channel.created", handleChannelEvent);
-    client.on("channel.updated", handleChannelEvent); // Added for updates
-    return () => {
-      client.off("channel.created", handleChannelEvent);
-      client.off("channel.updated", handleChannelEvent);
-    };
-  }, [client, filters]);
+  // Use pagination hook with proper filtering
+  const { channels, hasNextPage, loadNextPage, loading, error } =
+    usePaginatedChannels(
+      client,
+      filters,
+      { last_message_at: -1 },
+      { limit: 5 },
+      undefined,
+    );
+
+  // Apply additional filtering for announcement/survey channels
+  const config = useMemo(() => {
+    return channelType === CHANNEL_TYPES.TEAM
+      ? TEAM_CHANNEL_CONFIG
+      : MESSAGING_CHANNEL_CONFIG;
+  }, [channelType]);
+
+  const filteredChannels = useMemo(() => {
+    return config.filterFn(channels);
+  }, [channels, config.filterFn]);
+
+  const EmptyIndicator =
+    channelType === CHANNEL_TYPES.TEAM
+      ? EmptyGroupChannelListIndicator
+      : EmptyDMChannelListIndicator;
 
   return (
-    <ChannelList
-      channelRenderFilterFn={customChannelTeamFilter}
-      filters={filters[0]}
-      options={options}
-      sort={sort}
-      EmptyStateIndicator={EmptyGroupChannelListIndicator}
-      List={(listProps) => <TeamChannelList {...listProps} type="team" />}
-      Preview={(previewProps) => (
-        <ChannelPreview
-          {...previewProps}
-          type="team"
+    <div className="flex flex-col gap-2">
+      <div className="pt-4 flex items-center">
+        <p className="uppercase text-xs text-gray-500 font-bold">
+          {channelType === "team" ? "Channels" : "Direct Messages"}
+        </p>
+        <Button
+          variant="ghost"
+          className="size-10 ml-auto"
+          onClick={handleAddChannelClick}
+        >
+          <PlusCircleIcon className="size-5" />
+        </Button>
+      </div>
+
+      {/* Custom channel list with pagination */}
+      <div className="flex flex-col gap-1 overflow-hidden">
+        {filteredChannels.map((channel) => (
+          <ChannelPreview
+            key={channel.cid}
+            channel={channel}
+            type={channelType}
+            setActiveChannel={setActiveChannel}
+          />
+        ))}
+      </div>
+
+      {/* Loading state */}
+      {loading && (
+        <div className="flex items-center gap-2 text-sm py-2">
+          <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full" />
+          <span>Loading...</span>
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !loading && (
+        <p className="text-xs text-red-500 py-2">
+          Connection error, please wait a moment and try again.
+        </p>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && filteredChannels.length === 0 && (
+        <EmptyIndicator />
+      )}
+
+      {/* Pagination */}
+      {hasNextPage && !loading && (
+        <div className="flex items-center justify-center mt-2 px-2">
+          <button
+            onClick={loadNextPage}
+            className="w-full px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Load more {channelType === "team" ? "channels" : "messages"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function EnhancedSidebar({
+  setActiveChannel,
+  currentUserId,
+}: EnhancedSidebarProps) {
+  return (
+    <aside className="flex flex-col h-full">
+      <div className="pb-3">
+        <ChannelSearch
+          currentUserId={currentUserId}
           setActiveChannel={setActiveChannel}
         />
-      )}
-    />
-  );
-};
-
-const MessagingChannelsList = ({
-  setActiveChannel,
-}: {
-  setActiveChannel: SidebarProps["setActiveChannel"];
-}) => {
-  const { client } = useChatContext();
-  const filters = useMemo(() => getFilters(client.userID), [client.userID]);
-
-  useEffect(() => {
-    if (!client.userID) return;
-
-    const refreshChannels = async () => {
-      try {
-        await client.queryChannels(filters[1], sort, options);
-        console.log("[MessagingChannelsList] Channels refreshed");
-      } catch (err) {
-        console.error(
-          "[MessagingChannelsList] Failed to refresh channels:",
-          err
-        );
-      }
-    };
-    refreshChannels();
-
-    // Listen for channel creation and update events
-    const handleChannelEvent = () => {
-      refreshChannels();
-    };
-    client.on("channel.created", handleChannelEvent);
-    client.on("channel.updated", handleChannelEvent); // Added for updates
-    return () => {
-      client.off("channel.created", handleChannelEvent);
-      client.off("channel.updated", handleChannelEvent);
-    };
-  }, [client, filters]);
-
-  return (
-    <ChannelList
-      channelRenderFilterFn={customChannelMessagingFilter}
-      filters={filters[1]}
-      options={options}
-      sort={sort}
-      setActiveChannelOnMount={false}
-      EmptyStateIndicator={EmptyDMChannelListIndicator}
-      List={(listProps) => <TeamChannelList {...listProps} type="messaging" />}
-      Preview={(previewProps) => (
-        <ChannelPreview
-          {...previewProps}
-          type="messaging"
-          setActiveChannel={setActiveChannel}
-        />
-      )}
-    />
-  );
-};
-
-export const Sidebar = ({ setActiveChannel }: SidebarProps) => {
-  return (
-    <aside className="flex flex-col h-full bg-background">
-      <h1 className="font-bold text-2xl text-gray-400">HOAshare Chat</h1>
-
-      <div className="p-3">
-        <ChannelSearch />
       </div>
 
       <Separator />
 
-      <ScrollArea className="flex-1 px-2">
+      <div className="h-0.5 px-2">
         <div className="py-2">
-          <TeamChannelsList setActiveChannel={setActiveChannel} />
+          <ChannelListSection
+            setActiveChannel={setActiveChannel}
+            channelType={CHANNEL_TYPES.TEAM}
+          />
         </div>
         <Separator className="my-2" />
         <div className="py-2">
-          <MessagingChannelsList setActiveChannel={setActiveChannel} />
+          <ChannelListSection
+            setActiveChannel={setActiveChannel}
+            channelType={CHANNEL_TYPES.MESSAGING}
+          />
         </div>
-      </ScrollArea>
+      </div>
     </aside>
   );
-};
+}
 
-export const EmptyGroupChannelListIndicator = () => (
-  <div className="text-xs">
-    There are no group channels. Start by creating some.
-  </div>
-);
-
-export const EmptyDMChannelListIndicator = () => (
-  <div className="text-xs">
-    There are no DM channels. Start by creating some.
-  </div>
-);
+// Keep backward-compatible export
+export const Sidebar = EnhancedSidebar;

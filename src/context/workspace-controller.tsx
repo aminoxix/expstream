@@ -28,14 +28,11 @@ export const WorkspaceController = ({
   children: React.ReactNode;
 }) => {
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>(
-    WorkspaceFactory.createChat()
+    WorkspaceFactory.createChat(),
   );
   const [pinnedMessageListOpen, setPinnedMessageListOpen] = useState(false);
 
-  console.log("activeWorkspace", activeWorkspace);
-
   const displayWorkspace = useCallback((workspace: Workspace) => {
-    console.log("workspace", workspace);
     setActiveWorkspace(workspace);
     setPinnedMessageListOpen(false);
   }, []);
@@ -46,12 +43,12 @@ export const WorkspaceController = ({
 
   const togglePinnedMessageListOpen = useCallback(
     () => setPinnedMessageListOpen((prev) => !prev),
-    []
+    [],
   );
 
   const closePinnedMessageListOpen = useCallback(
     () => setPinnedMessageListOpen(false),
-    []
+    [],
   );
 
   return (

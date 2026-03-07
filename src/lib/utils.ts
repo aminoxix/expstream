@@ -30,3 +30,46 @@ export const isTokenExpired = (token: string): boolean => {
     return true; // If parsing fails, assume it's invalid
   }
 };
+
+export function getFileUrl(key: string): string {
+  if (!key) return "";
+  if (key.startsWith("http://") || key.startsWith("https://")) return key;
+  const prefix = process.env.NEXT_PUBLIC_AWS_S3_PREFIX_URL;
+  return prefix ? `${prefix}/${key}` : key;
+}
+
+export function getInitials(name?: string): string {
+  if (!name) return "";
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() || "")
+    .join("");
+}
+
+export function formatDateTime(
+  date: Date | string,
+  options?: Intl.DateTimeFormatOptions,
+): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    ...options,
+  }).format(d);
+}
+
+export function createURL(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined>,
+): string {
+  const url = new URL(path, "http://placeholder");
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        url.searchParams.set(key, String(value));
+      }
+    });
+  }
+  return `${url.pathname}${url.search}`;
+}

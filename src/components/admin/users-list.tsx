@@ -1,9 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import type { UserResponse } from "stream-chat";
-import { Avatar, useChatContext } from "stream-chat-react";
-import { useAdminPanelFormState } from "./context/form";
-import { ValidationError } from "./error";
+"use client";
 
+import { AvatarSimple } from "@/components/ui/avatar-simple";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
@@ -13,14 +10,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getUserFromStorage } from "@/lib/utils";
-
-const MOCKED_LAST_ACTIVE_STRINGS = [
-  "12 min ago",
-  "27 min ago",
-  "6 hours ago",
-  "14 hours ago",
-];
+import { useUsersContext } from "@/context/users-provider";
+import { getFileUrl, getInitials } from "@/lib/utils";
+import { getDisplayName } from "@/utils/helpers";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { UserFilters, UserResponse } from "stream-chat";
+import { useChatContext } from "stream-chat-react";
+import { useAdminPanelFormState } from "./context/form";
+import { ValidationError } from "./error";
 
 type UserListLoadState = "loading" | "error" | "empty";
 
@@ -34,11 +31,19 @@ const ListContainer = ({ children }: { children: React.ReactNode }) => {
   const { errors, createChannelType } = useAdminPanelFormState();
   const showHeading = !createChannelType || createChannelType === "team";
 
+  const showMemberError =
+    createChannelType === "team" || createChannelType === "messaging";
+
   return (
     <div className="w-full border rounded-md p-4 bg-white shadow-sm">
       {showHeading && (
         <div className="mb-4 flex flex-col gap-1">
           <h2 className="text-lg font-semibold">Add Members</h2>
+          {showMemberError && <ValidationError errorMessage={errors.members} />}
+        </div>
+      )}
+      {!showHeading && showMemberError && (
+        <div className="mb-4 flex flex-col gap-1">
           <ValidationError errorMessage={errors.members} />
         </div>
       )}
@@ -53,23 +58,26 @@ type UserItemProps = {
 };
 
 const UserItem = ({ index, user }: UserItemProps) => {
-  const { handleMemberSelect } = useAdminPanelFormState();
-  const lastActive = MOCKED_LAST_ACTIVE_STRINGS[index] || "Yesterday";
-  const title = user.name || user.id;
+  const { handleMemberSelect, members } = useAdminPanelFormState();
+  const title = getDisplayName(user) || user.name || user.id;
+
+  const isSelected = members.includes(user.id);
 
   return (
     <TableRow className="hover:bg-muted/50 h-12">
       <TableCell className="flex items-center gap-3">
-        <div className="size-8 rounded-md">
-          <Avatar image={user.image} name={title} />
-        </div>
+        <AvatarSimple
+          src={getFileUrl(user.image || "")}
+          className="size-8 rounded-md"
+          fallback={getInitials(title)}
+        />
         <span className="font-medium">{title}</span>
       </TableCell>
-      <TableCell>{lastActive}</TableCell>
       <TableCell className="text-right">
         <Checkbox
           id={user.id}
           value={user.id}
+          checked={isSelected}
           onCheckedChange={(checked) =>
             handleMemberSelect(user.id, checked === true)
           }
@@ -79,53 +87,142 @@ const UserItem = ({ index, user }: UserItemProps) => {
   );
 };
 
-export const UserList = () => {
+interface UserListProps {
+  users?: UserResponse[];
+  loading?: boolean;
+  onUsersChange?: (users: UserResponse[]) => void;
+  useStreamChatQuery?: boolean;
+}
+
+export const UserList = ({
+  users: externalUsers,
+  loading: externalLoading = false,
+  onUsersChange,
+  useStreamChatQuery = true,
+}: UserListProps = {}) => {
   const { client, channel } = useChatContext();
   const { createChannelType } = useAdminPanelFormState();
+  const usersContext = useUsersContext();
 
   const [loadState, setLoadState] = useState<UserListLoadState | null>(null);
-  const [users, setUsers] = useState<UserResponse[] | undefined>();
+  const [internalUsers, setInternalUsers] = useState<
+    UserResponse[] | undefined
+  >();
+  const hasFetchedRef = useRef(false);
 
   const channelMembers = useMemo(
     () => (channel?.state.members ? Object.keys(channel.state.members) : []),
-    [channel?.state?.members]
+    [channel?.state?.members],
   );
 
-  const user = getUserFromStorage();
+  const currentUserId = client.user?.id;
+
+  // Convert channel members to UserResponse format for editing
+  const channelMembersAsUsers = useMemo(() => {
+    if (!channel?.state?.members || createChannelType) return [];
+
+    return Object.values(channel.state.members)
+      .filter((member) => member.user?.id !== currentUserId)
+      .map(
+        (member) =>
+          ({
+            id: member.user?.id || "",
+            name: getDisplayName(member.user),
+            image: getFileUrl(member.user?.image || ""),
+            online: member.user?.online || false,
+            created_at: member.user?.created_at || new Date().toISOString(),
+            updated_at: member.user?.updated_at || new Date().toISOString(),
+            last_active: member.user?.last_active || new Date().toISOString(),
+            banned: member.user?.banned || false,
+            role: member.user?.role || "user",
+          }) as UserResponse,
+      );
+  }, [channel?.state?.members, currentUserId, createChannelType]);
+
+  // Priority: external props > context > internal state, then merge with channel members
+  const baseUsers = externalUsers || usersContext?.users || internalUsers;
+  const users = useMemo(() => {
+    if (!baseUsers && !channelMembersAsUsers.length) return undefined;
+
+    const allUsers = [...(baseUsers || [])];
+
+    // Add channel members that aren't already in the list
+    channelMembersAsUsers.forEach((channelUser) => {
+      if (!allUsers.some((user) => user.id === channelUser.id)) {
+        allUsers.unshift(channelUser);
+      }
+    });
+
+    return allUsers;
+  }, [baseUsers, channelMembersAsUsers]);
+
+  const { handleMemberSelect, members } = useAdminPanelFormState();
+
+  const allSelected =
+    !!users?.length && users.every((u) => members.includes(u.id));
+
+  const handleSelectAll = (checked: boolean) => {
+    users?.forEach((u) => {
+      const isSelected = members.includes(u.id);
+      if (checked && !isSelected) {
+        handleMemberSelect(u.id, true);
+      } else if (!checked && isSelected) {
+        handleMemberSelect(u.id, false);
+      }
+    });
+  };
+
+  const isLoading = externalLoading || loadState === "loading";
 
   useEffect(() => {
-    const getUsers = async () => {
-      if (loadState) return;
-      setLoadState("loading");
+    if (!useStreamChatQuery || externalUsers || usersContext?.users) return;
+    if (!client || !currentUserId) return;
+    if (hasFetchedRef.current) return;
 
-      try {
-        const response = await client.queryUsers(
-          // { id: { $nin: [user.userId] } },
-          {
-            id: {
-              // @ts-ignore - $nin not typed
-              $nin: !createChannelType // not team / for edit
-                ? [...channelMembers, user.userId]
-                : [user.userId],
-            },
-          },
-          { id: 1 },
-          { limit: 8 }
-        );
+    hasFetchedRef.current = true;
+    setLoadState("loading");
 
+    const excludeUserIds = createChannelType
+      ? [currentUserId].filter(Boolean)
+      : [currentUserId, ...channelMembers].filter(Boolean);
+
+    client
+      .queryUsers(
+        // $nin is supported by the API but not in the SDK's TypeScript definitions
+        {
+          id: { $nin: excludeUserIds },
+        } as unknown as UserFilters,
+        { id: 1 },
+        { limit: 8 },
+      )
+      .then((response) => {
         if (response.users.length) {
-          setUsers(response.users);
+          setInternalUsers(response.users);
           setLoadState(null);
         } else {
           setLoadState("empty");
         }
-      } catch {
+      })
+      .catch(() => {
         setLoadState("error");
-      }
-    };
+        hasFetchedRef.current = false;
+      });
+  }, [
+    client,
+    channelMembers,
+    createChannelType,
+    currentUserId,
+    useStreamChatQuery,
+    externalUsers,
+    usersContext?.users,
+  ]);
 
-    if (client) getUsers();
-  }, [client, channelMembers, createChannelType]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Notify parent component of the merged user list
+  useEffect(() => {
+    if (users && onUsersChange) {
+      onUsersChange(users);
+    }
+  }, [users, onUsersChange]);
 
   return (
     <ListContainer>
@@ -133,15 +230,27 @@ export const UserList = () => {
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
-            <TableHead>Last Active</TableHead>
-            <TableHead className="text-right">Invite</TableHead>
+            <TableHead className="text-right">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={(checked) => handleSelectAll(checked === true)}
+              />
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {loadState ? (
+          {loadState || isLoading ? (
             <TableRow>
               <TableCell colSpan={3} className="text-center text-sm italic">
-                {LOAD_STATE_NOTIFICATION[loadState]}
+                {loadState
+                  ? LOAD_STATE_NOTIFICATION[loadState]
+                  : "Loading users..."}
+              </TableCell>
+            </TableRow>
+          ) : !users?.length ? (
+            <TableRow>
+              <TableCell colSpan={3} className="text-center text-sm italic">
+                {LOAD_STATE_NOTIFICATION.empty}
               </TableCell>
             </TableRow>
           ) : (

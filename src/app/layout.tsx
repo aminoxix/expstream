@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
-import { StreamChatProvider } from "../context/stream-chat-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,7 +29,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen min-w-screen`}
       >
         <main>
-          <StreamChatProvider>{children}</StreamChatProvider>
+          {children}
           <Toaster />
         </main>
       </body>
