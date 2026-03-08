@@ -1,5 +1,5 @@
-import { CloseIcon } from "stream-chat-react";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
+import { XIcon } from "@phosphor-icons/react";
 
 type AdminPanelHeaderProps = {
   onClose: () => void;
@@ -7,10 +7,10 @@ type AdminPanelHeaderProps = {
 };
 
 export const AdminPanelHeader = ({ onClose, title }: AdminPanelHeaderProps) => (
-  <div className="flex p-2 justify-between">
+  <div className="flex items-center justify-between">
     <h1 className="font-bold text-xl">{title}</h1>
-    <Button variant="ghost" onClick={onClose}>
-      <CloseIcon />
+    <Button variant="outline" className="size-8" onClick={onClose}>
+      <XIcon className="size-4" />
     </Button>
   </div>
 );

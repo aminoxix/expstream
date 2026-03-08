@@ -1,8 +1,8 @@
 // src/components/channel-name-input.tsx
 "use client";
 
+import { Input } from "@/components/ui/input";
 import { ChangeEventHandler } from "react";
-import { Input } from "../ui/input";
 
 export interface ChannelNameInputProps {
   name: string | undefined;
@@ -33,6 +33,11 @@ export const ChannelNameInputField = ({
         aria-invalid={!!error}
         aria-describedby={error ? "channel-name-error" : undefined}
       />
+      {error && (
+        <p id="channel-name-error" className="text-red-500 text-sm">
+          {error}
+        </p>
+      )}
     </div>
   );
 };

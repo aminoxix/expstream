@@ -1,10 +1,14 @@
 // src/components/footer.tsx
 "use client";
 
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { QuestionIcon } from "@phosphor-icons/react";
 import { MouseEventHandler } from "react";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useAdminPanelFormState } from "./context/form";
 
 export interface AdminPanelFooterProps {
@@ -21,7 +25,7 @@ export const AdminPanelFooter = ({
   const { canUpdateChannel } = useAdminPanelFormState();
   return (
     <div className="p-4 border-t flex justify-end items-center gap-2">
-      {canUpdateChannel ? (
+      {!canUpdateChannel ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <QuestionIcon />
@@ -35,7 +39,7 @@ export const AdminPanelFooter = ({
         type="submit"
         onClick={onButtonClick}
         aria-disabled={disabled}
-        disabled={disabled || canUpdateChannel}
+        disabled={disabled || !canUpdateChannel}
       >
         {buttonText}
       </Button>

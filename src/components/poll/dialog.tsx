@@ -1,54 +1,151 @@
-// src/components/CustomPollCreationDialog.tsx
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
-import {
-  Controller,
-  Resolver,
-  SubmitHandler,
-  useFieldArray,
-  useForm,
-} from "react-hook-form";
-import { toast } from "sonner";
-import { VotingVisibility } from "stream-chat";
-import { useChatContext } from "stream-chat-react";
-import { z } from "zod";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../ui/dialog";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Switch } from "../ui/switch";
-import { Textarea } from "../ui/textarea";
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { analyzeChatError } from "@/utils/chat-error-handler";
+import {
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  DotsSixVerticalIcon,
+  PlusIcon,
+  TrashIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
+import { useEffect } from "react";
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  UseFormRegister,
+  useWatch,
+} from "react-hook-form";
+import { toast } from "sonner";
+import { Channel, StreamChat, VotingVisibility } from "stream-chat";
+import { useChatContext } from "stream-chat-react";
 
-const PollFormSchema = z.object({
-  name: z.string().min(1, "Poll question is required"),
-  description: z.string().optional(),
-  options: z
-    .array(z.object({ text: z.string().min(1, "Option cannot be empty") }))
-    .min(2, "At least two options are required"),
-  allow_answers: z.boolean().optional().default(true),
-  allow_user_suggested_options: z.boolean().optional().default(false),
-  enforce_unique_vote: z.boolean().optional().default(false),
-  voting_visibility: z
-    .enum(VotingVisibility)
-    .optional()
-    .default(VotingVisibility.public),
-});
+type PollOption = {
+  text: string;
+};
 
-type PollFormValues = z.infer<typeof PollFormSchema>;
+interface SortableOptionProps {
+  id: string;
+  index: number;
+  register: UseFormRegister<PollFormValues>;
+  placeholder: string;
+  canRemove: boolean;
+  onRemove: () => void;
+  disabled?: boolean;
+}
+
+const SortableOption = ({
+  id,
+  index,
+  register,
+  placeholder,
+  canRemove,
+  onRemove,
+  disabled = false,
+}: SortableOptionProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 bg-white border border-gray-200 rounded-md p-2"
+    >
+      <button
+        type="button"
+        className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <DotsSixVerticalIcon className="h-5 w-5" />
+      </button>
+
+      <Input
+        {...register(`options.${index}.text` as const)}
+        placeholder={placeholder}
+        className="flex-1"
+        disabled={disabled}
+      />
+
+      {canRemove && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onRemove}
+          aria-label={`Remove option ${index + 1}`}
+          className="text-gray-400 hover:text-red-500"
+        >
+          <TrashIcon className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+};
+
+type PollFormValues = {
+  name: string;
+  description: string;
+  options: PollOption[];
+  allow_answers: boolean;
+  allow_user_suggested_options: boolean;
+  enforce_unique_vote: boolean;
+  voting_visibility: "public" | "anonymous";
+};
 
 interface CustomPollCreationDialogProps {
   isOpen: boolean;
   onClose: () => void;
   pollId?: string;
   initialData?: PollFormValues;
+  client?: StreamChat;
+  channel?: Channel;
+  onPollCreated?: () => void;
 }
 
 export const CustomPollCreationDialog = ({
@@ -56,20 +153,15 @@ export const CustomPollCreationDialog = ({
   onClose,
   pollId,
   initialData,
+  client: propClient,
+  channel: propChannel,
+  onPollCreated,
 }: CustomPollCreationDialogProps) => {
-  const { client, channel } = useChatContext();
+  const contextResult = useChatContext();
+  const client = propClient || contextResult.client;
+  const channel = propChannel || contextResult.channel;
 
-  const {
-    control,
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm<PollFormValues>({
-    resolver: zodResolver(PollFormSchema) as unknown as Resolver<
-      PollFormValues,
-      any
-    >,
+  const form = useForm<PollFormValues>({
     defaultValues: initialData || {
       name: "",
       description: "",
@@ -77,50 +169,187 @@ export const CustomPollCreationDialog = ({
       allow_answers: true,
       allow_user_suggested_options: false,
       enforce_unique_vote: false,
-      voting_visibility: VotingVisibility.public,
+      voting_visibility: "public",
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control,
+  const { fields, append, remove, move } = useFieldArray({
+    control: form.control,
     name: "options",
   });
 
-  const onSubmit: SubmitHandler<PollFormValues> = async (data) => {
+  const watchedOptions = useWatch({
+    control: form.control,
+    name: "options",
+  });
+
+  useEffect(() => {
+    const validOptions =
+      watchedOptions?.filter((option) => option?.text?.trim()) || [];
+    if (validOptions.length >= 2) {
+      const optionTexts = validOptions.map((option) =>
+        option.text.trim().toLowerCase(),
+      );
+      const duplicates = optionTexts.filter(
+        (text, index) => optionTexts.indexOf(text) !== index,
+      );
+
+      if (duplicates.length > 0) {
+        form.setError("options", {
+          type: "identical",
+          message:
+            "Identical options detected. Please modify duplicate options.",
+        });
+      } else {
+        form.clearErrors("options");
+      }
+    } else {
+      form.clearErrors("options");
+    }
+  }, [watchedOptions, form]);
+
+  useEffect(() => {
+    if (initialData) {
+      form.reset(initialData);
+    }
+  }, [initialData, form]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = fields.findIndex((field) => field.id === active.id);
+      const newIndex = fields.findIndex((field) => field.id === over?.id);
+
+      move(oldIndex, newIndex);
+    }
+  };
+
+  const onSubmit = form.handleSubmit(async (data: PollFormValues) => {
     try {
+      if (!data.name?.trim()) {
+        form.setError("name", {
+          type: "required",
+          message: "Poll question is required",
+        });
+        return;
+      }
+
+      const validOptions = data.options.filter((option) => option.text.trim());
+      if (validOptions.length < 2) {
+        form.setError("options", {
+          type: "min",
+          message: "At least two options are required",
+        });
+        return;
+      }
+
+      const optionTexts = validOptions.map((option) =>
+        option.text.trim().toLowerCase(),
+      );
+      const duplicates = optionTexts.filter(
+        (text, index) => optionTexts.indexOf(text) !== index,
+      );
+      if (duplicates.length > 0) {
+        form.setError("options", {
+          type: "identical",
+          message:
+            "Identical options detected. Please modify duplicate options.",
+        });
+        return;
+      }
+
+      if (!client) {
+        toast.error("Chat client not available. Please try again.");
+        return;
+      }
+
+      if (!channel) {
+        toast.error("Channel not available. Please try again.");
+        return;
+      }
+
       const pollData = {
-        name: data.name,
-        description: data.description || "",
-        options: data.options,
+        name: data.name.trim(),
+        description: data.description?.trim() || "",
+        options: validOptions,
         allow_answers: data.allow_answers,
         allow_user_suggested_options: data.allow_user_suggested_options,
         enforce_unique_vote: data.enforce_unique_vote,
-        voting_visibility: data.voting_visibility,
+        voting_visibility:
+          data.voting_visibility === "anonymous"
+            ? VotingVisibility.anonymous
+            : VotingVisibility.public,
       };
 
-      console.log("[CustomPollCreationDialog] Submitting poll:", pollData, {
-        pollId,
-      });
-
       if (pollId) {
-        console.warn("[CustomPollCreationDialog] Poll update not implemented");
-        toast.error("Poll updating is not supported yet");
+        const pollInstance = client.polls.fromState(pollId);
+
+        const { options, ...pollMetadata } = pollData;
+        const updatedPoll = await pollInstance?.partialUpdate({
+          set: pollMetadata,
+        });
+
+        if (!updatedPoll?.poll?.id) {
+          throw new Error("Failed to update poll - no poll ID returned");
+        }
+
+        if (channel) {
+          const messages = channel.state.messages;
+          const pollMessage = messages.find((msg) => msg.poll_id === pollId);
+
+          if (pollMessage) {
+            const updatedText = [
+              `New Poll: **${data.name || "Untitled"}**`,
+              data.description ? `\n${data.description}` : "",
+            ].join("\n");
+
+            await client.updateMessage({
+              id: pollMessage.id,
+              text: updatedText,
+            });
+          }
+        }
+
+        toast.success(
+          "Poll updated successfully (options cannot be modified once created)",
+        );
       } else {
         const poll = await client.polls.createPoll(pollData);
-        await channel?.sendMessage({
-          text: `New poll: ${data.name}`,
-          poll_id: poll?.id,
+
+        if (!poll?.id) {
+          throw new Error("Failed to create poll - no poll ID returned");
+        }
+
+        const textParts = [
+          `New Poll: **${data.name || "Untitled"}**`,
+          data.description ? `\n${data.description}` : "",
+        ].join("\n");
+
+        await channel.sendMessage({
+          text: textParts,
+          poll_id: poll.id,
         });
+
         toast.success("Poll created successfully");
       }
-
-      reset();
+      onPollCreated?.();
+      form.reset();
       onClose();
     } catch (error) {
-      console.error("[CustomPollCreationDialog] Error:", error);
-      toast.error(pollId ? "Failed to update poll" : "Failed to create poll");
+      const errorInfo = analyzeChatError(error);
+      toast.error(
+        `Failed to ${pollId ? "update" : "create"} poll: ${errorInfo.message}`,
+      );
     }
-  };
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -130,152 +359,190 @@ export const CustomPollCreationDialog = ({
         </DialogHeader>
 
         <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="space-y-4"
+          onSubmit={onSubmit}
+          className="flex-1 space-y-6 overflow-y-auto max-h-[70vh]"
           onKeyDown={(e) => {
-            // Prevent Enter from submitting parent form
             if (e.key === "Enter" && !e.shiftKey) {
               e.stopPropagation();
             }
           }}
         >
-          <div>
-            <Label htmlFor="name">Poll Question</Label>
+          <div className="px-1">
+            <Label htmlFor="poll-name">Poll Question</Label>
             <Input
-              id="name"
-              {...register("name")}
+              id="poll-name"
+              {...form.register("name")}
               placeholder="Enter poll question"
               className="mt-1"
             />
-            {errors.name && (
-              <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
+            {form.formState.errors.name && (
+              <p className="text-sm text-red-500 mt-1">
+                {form.formState.errors.name.message}
+              </p>
             )}
           </div>
 
-          <div>
-            <Label htmlFor="description">Description (Optional)</Label>
+          <div className="px-1">
+            <Label htmlFor="poll-description">Description (Optional)</Label>
             <Textarea
-              id="description"
-              {...register("description")}
+              id="poll-description"
+              {...form.register("description")}
               placeholder="Enter poll description"
+              rows={3}
               className="mt-1"
             />
-            {errors.description && (
-              <p className="text-sm text-red-500 mt-1">
-                {errors.description.message}
-              </p>
-            )}
           </div>
 
-          <div>
-            <Label>Options</Label>
-            {fields.map((field, index) => (
-              <div key={field.id} className="flex items-center gap-2 mt-2">
-                <Input
-                  {...register(`options.${index}.text` as const)}
-                  placeholder={`Option ${index + 1}`}
-                />
-                {fields.length > 2 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => remove(index)}
-                    aria-label={`Remove option ${index + 1}`}
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
+          <div className="space-y-2 px-1">
+            <Label>Poll Options (up to 10)</Label>
 
-            {errors.options && (
-              <p className="text-sm text-red-500 mt-1">
-                {((errors.options as any)?.message as string) ||
-                  (errors.options as any)?.root?.message ||
-                  "Invalid options"}
-              </p>
-            )}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => append({ text: "" })}
-              className="mt-2"
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
             >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Add Option
-            </Button>
+              <SortableContext
+                items={fields.map((field) => field.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {fields.map((field, index) => (
+                    <SortableOption
+                      key={field.id}
+                      id={field.id}
+                      index={index}
+                      register={form.register}
+                      placeholder={`Option ${index + 1}`}
+                      canRemove={fields.length > 2 && !pollId}
+                      onRemove={() => remove(index)}
+                      disabled={!!pollId}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+
+            {!pollId && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      size="sm"
+                      type="button"
+                      className="mt-2"
+                      variant="outline"
+                      disabled={fields.length >= 10}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        append({ text: "" });
+                      }}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Add Option
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+
+                {fields.length >= 10 && (
+                  <TooltipContent>
+                    <p>You've reached the maximum of 10 options</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            )}
+            {form.formState.errors.options && (
+              <p className="text-sm text-red-500">
+                {form.formState.errors.options.message}
+              </p>
+            )}
+
+            <p className="flex items-center text-sm text-yellow-600 mt-2">
+              <WarningIcon className="size-4 mr-2" />
+              Poll options cannot be modified once created.
+            </p>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="allow_answers">Allow Comments</Label>
+          <div className="space-y-3 px-1">
+            <Label>Poll Settings</Label>
+            <div className="space-y-2">
               <Controller
-                control={control}
+                control={form.control}
                 name="allow_answers"
                 render={({ field }) => (
-                  <Switch
-                    id="allow_answers"
-                    checked={!!field.value}
-                    onCheckedChange={(checked) => field.onChange(checked)}
-                  />
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="allow-answers"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <label
+                      htmlFor="allow-answers"
+                      className="text-sm font-medium"
+                    >
+                      Allow Comments
+                    </label>
+                  </div>
                 )}
               />
-            </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="allow_user_suggested_options">
-                Allow User-Suggested Options
-              </Label>
               <Controller
-                control={control}
+                control={form.control}
                 name="allow_user_suggested_options"
                 render={({ field }) => (
-                  <Switch
-                    id="allow_user_suggested_options"
-                    checked={!!field.value}
-                    onCheckedChange={(checked) => field.onChange(checked)}
-                  />
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="allow-suggestions"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <label
+                      htmlFor="allow-suggestions"
+                      className="text-sm font-medium"
+                    >
+                      Allow User-Suggested Options
+                    </label>
+                  </div>
                 )}
               />
-            </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="enforce_unique_vote">Enforce Unique Vote</Label>
               <Controller
-                control={control}
+                control={form.control}
                 name="enforce_unique_vote"
                 render={({ field }) => (
-                  <Switch
-                    id="enforce_unique_vote"
-                    checked={!!field.value}
-                    onCheckedChange={(checked) => field.onChange(checked)}
-                  />
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="unique-vote"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <label
+                      htmlFor="unique-vote"
+                      className="text-sm font-medium"
+                    >
+                      Enforce Unique Vote
+                    </label>
+                  </div>
                 )}
               />
-            </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="voting_visibility">Anonymous Voting</Label>
-              <Controller
-                control={control}
-                name="voting_visibility"
-                render={({ field }) => (
-                  <Switch
-                    id="voting_visibility"
-                    checked={field.value === VotingVisibility.anonymous}
-                    onCheckedChange={(checked) =>
-                      field.onChange(
-                        checked
-                          ? VotingVisibility.anonymous
-                          : VotingVisibility.public
-                      )
-                    }
-                  />
-                )}
-              />
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="anonymous-voting"
+                  checked={form.watch("voting_visibility") === "anonymous"}
+                  onCheckedChange={(checked) =>
+                    form.setValue(
+                      "voting_visibility",
+                      checked ? "anonymous" : "public",
+                    )
+                  }
+                />
+                <label
+                  htmlFor="anonymous-voting"
+                  className="text-sm font-medium"
+                >
+                  Anonymous Voting
+                </label>
+              </div>
             </div>
           </div>
 
@@ -284,18 +551,18 @@ export const CustomPollCreationDialog = ({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={isSubmitting}
+              disabled={form.formState.isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting
                 ? pollId
                   ? "Updating..."
                   : "Creating..."
                 : pollId
-                ? "Update Poll"
-                : "Create Poll"}
+                  ? "Update Poll"
+                  : "Create Poll"}
             </Button>
           </DialogFooter>
         </form>

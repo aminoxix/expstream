@@ -1,94 +1,95 @@
 "use client";
 
-import Chat from "@/components/chat";
-import { useStreamChat } from "@/context/stream-chat-provider";
+import MyChat from "@/components/chat";
+import {
+  useIntegratedStreamChat,
+  type AuthContextLike,
+} from "@/hooks/use-integrated-stream-chat";
 import { getUserFromStorage } from "@/lib/utils";
 import { createTokenProvider } from "@/utils/streamClient";
-import { redirect } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Channel } from "stream-chat";
+import type { StreamChatUserInfo } from "@/utils/token-helper";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function Dashboard() {
-  const client = useStreamChat();
+  const router = useRouter();
+
   const [user, setUser] = useState<{
     userId: string;
     fullName?: string;
-    token?: string;
+    imageUrl?: string;
   } | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<Channel | undefined>(
-    undefined
-  );
-  const [clientError, setClientError] = useState<string | null>(null);
 
-  // Load user and connect client
   useEffect(() => {
     const storedUser = getUserFromStorage();
     if (!storedUser) {
-      redirect("/create");
+      router.replace("/create");
     } else {
       setUser(storedUser);
     }
+  }, [router]);
 
-    if (!client || !storedUser) return;
+  const auth: AuthContextLike | null = useMemo(() => {
+    if (!user) return null;
 
-    const connectClient = async () => {
-      try {
-        const token = await createTokenProvider(storedUser.userId)();
-
-        await client.connectUser(
-          {
-            id: storedUser.userId,
-            name: storedUser.fullName || storedUser.userId,
-            image: storedUser.imageUrl || undefined,
-          },
-          token
-        );
-
-        // Initialize default channel after connection
-        const channel = client.channel("team", `${storedUser.userId}-default`, {
-          members: [storedUser.userId],
-          name: `${storedUser.fullName || storedUser.userId}'s Channel`,
-        });
-        await channel.create();
-        await channel.watch();
-        setSelectedChannel(channel);
-      } catch (err) {
-        console.error(
-          "[Dashboard] Failed to connect client or initialize channel:",
-          err
-        );
-        setClientError("Failed to initialize chat client or channel.");
-      }
+    const nameParts = user.fullName?.split(" ") ?? [];
+    const streamUser: StreamChatUserInfo = {
+      user_id: user.userId,
+      first_name: nameParts[0],
+      last_name: nameParts.slice(1).join(" ") || undefined,
+      image: user.imageUrl,
     };
 
-    connectClient();
-
-    return () => {
-      client.disconnectUser();
+    return {
+      user: streamUser,
+      logout: () => {
+        localStorage.removeItem("user");
+        router.replace("/create");
+      },
     };
-  }, [client]);
+  }, [user, router]);
 
-  if (!user || !client) {
+  const resolveTokenProvider = useCallback(() => {
+    if (!user) throw new Error("No user available");
+    return createTokenProvider(user.userId);
+  }, [user]);
+
+  const { isConnected, isConnecting, connectionError, retry } =
+    useIntegratedStreamChat({
+      auth,
+      resolveTokenProvider,
+      autoConnect: true,
+    });
+
+  if (!user) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        {clientError ? (
-          <div className="text-red-500 text-center">{clientError}</div>
-        ) : (
-          <h1 className="text-gray-800 text-lg">Loading...</h1>
-        )}
+        <h1 className="text-gray-800 text-lg">Loading...</h1>
       </div>
     );
   }
 
-  return (
-    <div className="flex h-screen bg-gray-50">
-      <section className="flex-1">
-        <Chat
-          userId={user.userId}
-          // userName={user.fullName || user.userId}
-          selectedChannel={selectedChannel}
-        />
-      </section>
-    </div>
-  );
+  if (connectionError) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+        <p className="text-red-500 text-center">{connectionError}</p>
+        <button
+          onClick={retry}
+          className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (isConnecting || !isConnected) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <h1 className="text-gray-800 text-lg">Connecting to chat...</h1>
+      </div>
+    );
+  }
+
+  return <MyChat userId={user.userId} />;
 }

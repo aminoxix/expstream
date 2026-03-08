@@ -1,56 +1,24 @@
 "use client";
 
-import { useStreamChat } from "@/context/stream-chat-provider";
 import { WorkspaceController } from "@/context/workspace-controller";
-import { useCallback, useEffect, useState } from "react";
+import { useStreamChat } from "@/hooks/use-stream-chat";
+import { useCallback, useState } from "react";
 import type {
   LocalMessage,
   Message,
   SendMessageOptions,
   Channel as StreamChannel,
 } from "stream-chat";
-import {
-  Chat,
-  MessageInputProps,
-  Channel as StreamChannelComponent,
-  useChatContext,
-} from "stream-chat-react";
+import { Chat, type MessageInputProps } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
 import ChannelContainer from "./channel-container";
-import { Sidebar } from "./sidebar";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "./ui/resizable";
+import { ChatEmptyState } from "./chat-empty-state";
+import { ResponsiveChatLayout } from "./responsive-chat-layout";
+import { EnhancedSidebar } from "./sidebar";
 
-export default function MyChat({
-  userId,
-  selectedChannel,
-}: {
-  userId: string;
-  selectedChannel?: StreamChannel | null;
-}) {
-  const client = useStreamChat();
-  const { channel: activeChannel } = useChatContext();
+export default function MyChat({ userId }: { userId: string }) {
+  const { client } = useStreamChat();
   const [channel, setChannel] = useState<StreamChannel | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
-
-  // Sync channel state with selectedChannel and activeChannel
-  useEffect(() => {
-    if (selectedChannel) {
-      setChannel(selectedChannel);
-    } else if (activeChannel) {
-      setChannel(activeChannel);
-    }
-  }, [selectedChannel, activeChannel]);
-
-  // Set custom color
-  useEffect(() => {
-    const storedColor = localStorage.getItem(`color_${userId}`);
-    const newColor = storedColor || createCustomColor();
-    localStorage.setItem(`color_${userId}`, newColor);
-  }, [userId]);
 
   const submitHandler: MessageInputProps["overrideSubmitHandler"] = useCallback(
     async (params: {
@@ -60,74 +28,49 @@ export default function MyChat({
       sendOptions: SendMessageOptions;
     }) => {
       try {
-        const targetChannel = activeChannel || channel;
-        if (!targetChannel) {
+        if (!channel) {
           throw new Error("No active channel selected");
         }
-        await targetChannel.sendMessage(
+        await channel.sendMessage(
           {
             text: params.localMessage.text,
             user_id: params.localMessage.user_id,
           },
-          params.sendOptions
+          params.sendOptions,
         );
       } catch (err) {
         console.error("[MyChat] Failed to send message:", err);
-        setError(
-          "Failed to send message: " +
-            (err instanceof Error ? err.message : "Unknown error")
-        );
       }
     },
-    [channel, activeChannel]
+    [channel],
   );
 
-  if (error) return <div>Error: {error}</div>;
-  if (!client || !channel) return <div>Setting up client & connection...</div>;
+  if (!client) return <div>Setting up client & connection...</div>;
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-gray-50 text-black">
       <Chat client={client}>
         <WorkspaceController>
-          <ResizablePanelGroup direction="horizontal" className="flex h-full">
-            <ResizablePanel
-              defaultSize={25}
-              minSize={15}
-              maxSize={35}
-              className="border-r bg-white"
-            >
-              <div className="h-full overflow-y-auto p-4">
-                <Sidebar setActiveChannel={setChannel} />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle withHandle className="bg-border" />
-            <ResizablePanel className="flex-1 min-w-0">
-              <StreamChannelComponent channel={channel}>
-                <ChannelContainer
-                  submitHandler={submitHandler}
-                  setActiveChannel={setChannel}
-                />
-              </StreamChannelComponent>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+          <ResponsiveChatLayout
+            selectedChannel={channel}
+            setActiveChannel={setChannel}
+            renderSidebar={() => (
+              <EnhancedSidebar
+                setActiveChannel={setChannel}
+                currentUserId={userId}
+              />
+            )}
+            renderChat={() => (
+              <ChannelContainer
+                submitHandler={submitHandler}
+                setActiveChannel={setChannel}
+                onBack={() => setChannel(undefined)}
+              />
+            )}
+            renderEmptyState={() => <ChatEmptyState />}
+          />
         </WorkspaceController>
       </Chat>
     </div>
   );
-}
-
-function createCustomColor(): string {
-  const colors = [
-    "red",
-    "blue",
-    "green",
-    "yellow",
-    "purple",
-    "orange",
-    "pink",
-    "brown",
-    "gray",
-    "black",
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
 }

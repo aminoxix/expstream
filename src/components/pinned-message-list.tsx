@@ -3,12 +3,13 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useWorkspaceController } from "@/context/workspace-controller";
+import { XIcon } from "@phosphor-icons/react";
 import {
-  CloseIcon,
   DialogManagerProvider,
   Message,
   useChannelStateContext,
 } from "stream-chat-react";
+import { TeamMessage } from "./message";
 
 export const PinnedMessageList = () => {
   const { pinnedMessageListOpen, togglePinnedMessageListOpen } =
@@ -22,16 +23,16 @@ export const PinnedMessageList = () => {
 
   return (
     <DialogManagerProvider id="pinned-message-list-dialog-manager">
-      <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl border-l border-gray-200 flex flex-col">
+      <div className="absolute top-0 right-0 z-50 h-full w-full max-w-md bg-white shadow-xl border-l border-gray-200 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Pins</h2>
           <Button
-            variant="ghost"
             size="icon"
+            variant="secondary"
             onClick={togglePinnedMessageListOpen}
           >
-            <CloseIcon />
+            <XIcon />
           </Button>
         </div>
 
@@ -43,7 +44,11 @@ export const PinnedMessageList = () => {
           {hasPinnedMessages ? (
             pinnedMessages.map((message) => (
               <div key={message.id} className="mb-4 last:mb-0 overflow-hidden">
-                <Message groupStyles={["single"]} message={message} />
+                <Message
+                  groupStyles={["single"]}
+                  message={message}
+                  Message={TeamMessage}
+                />
               </div>
             ))
           ) : (
