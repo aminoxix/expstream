@@ -17,6 +17,21 @@ function getS3Client() {
   });
 }
 
+const ALLOWED_MIME_PREFIXES = [
+  "image/",
+  "video/",
+  "audio/",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument",
+  "application/vnd.ms-excel",
+  "text/",
+];
+
+function isAllowedMimeType(mimeType: string): boolean {
+  return ALLOWED_MIME_PREFIXES.some((prefix) => mimeType.startsWith(prefix));
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -25,6 +40,13 @@ export async function POST(request: Request) {
     if (!content_type || !extension) {
       return NextResponse.json(
         { error: "content_type and extension are required" },
+        { status: 400 },
+      );
+    }
+
+    if (!isAllowedMimeType(content_type)) {
+      return NextResponse.json(
+        { error: "File type not allowed" },
         { status: 400 },
       );
     }
@@ -49,7 +71,7 @@ export async function POST(request: Request) {
     const url = await getSignedUrl(s3, command, { expiresIn: 300 });
 
     return NextResponse.json({ key, url });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[api/upload] Failed:", error);
     return NextResponse.json(
       { error: "Failed to generate upload URL" },

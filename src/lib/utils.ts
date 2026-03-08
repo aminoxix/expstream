@@ -12,7 +12,7 @@ export const getUserFromStorage = () => {
   if (storedUser) {
     try {
       return JSON.parse(storedUser);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to parse stored user:", err);
       localStorage.removeItem("user");
     }

@@ -130,7 +130,7 @@ export const usePaginatedChannels = (
             activeChannelHandler(newChannels, setChannels);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         // Analyze error to prevent retry loops for non-recoverable errors
         const errorInfo = analyzeChatError(err);
 

@@ -65,7 +65,7 @@ export function useIntegratedStreamChat({
 
         setSetupError(null);
         setIsSetupComplete(true);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[useIntegratedStreamChat] Setup failed:", error);
         setSetupError(error instanceof Error ? error.message : "Setup failed");
         setIsSetupComplete(false);
@@ -99,7 +99,7 @@ export function useIntegratedStreamChat({
 
       await streamChat.retry(streamUser, tokenProvider);
       setIsSetupComplete(true);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[useIntegratedStreamChat] Retry failed:", error);
       setSetupError(error instanceof Error ? error.message : "Retry failed");
     }

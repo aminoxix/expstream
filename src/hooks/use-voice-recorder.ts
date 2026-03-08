@@ -132,7 +132,7 @@ export function useVoiceRecorder(): VoiceRecorderResult {
     ) {
       try {
         mediaRecorderRef.current.stop();
-      } catch (e) {
+      } catch (e: unknown) {
         console.debug("[VoiceRecorder] Failed to stop recorder:", e);
       }
     }
@@ -229,7 +229,7 @@ export function useVoiceRecorder(): VoiceRecorderResult {
       setState("recording");
       startDurationTracking();
       startAmplitudeSampling();
-    } catch (err) {
+    } catch (err: unknown) {
       const errorName = err instanceof Error ? err.name : "";
       if (
         errorName === "NotAllowedError" ||

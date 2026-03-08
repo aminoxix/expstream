@@ -51,7 +51,7 @@ export function useStreamChat(): UseStreamChatReturn {
     async (user: StreamChatUser, tokenProvider: TokenProvider) => {
       try {
         await manager.connect(user, tokenProvider);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[useStreamChat] Connect error:", error);
         throw error;
       }

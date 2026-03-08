@@ -456,7 +456,7 @@ export const TeamMessageInput = () => {
         }),
       );
       setUploadError(null);
-    } catch (err) {
+    } catch (err: unknown) {
       setUploadedAttachments((prev) => prev.filter((a) => a.key !== null));
       const errorInfo = analyzeChatError(err);
       setUploadError(errorInfo.message);
@@ -576,7 +576,7 @@ export const TeamMessageInput = () => {
       voiceRecorder.cancelRecording();
       messageComposer.clear?.();
       setUploadError(null);
-    } catch (err) {
+    } catch (err: unknown) {
       const errorInfo = analyzeChatError(err);
       toast.error(errorInfo.message);
     } finally {
@@ -812,7 +812,7 @@ export const ThreadMessageInput = () => {
       await channel.sendMessage({ text });
       clear();
       messageComposer.clear?.();
-    } catch (err) {
+    } catch (err: unknown) {
       const errorInfo = analyzeChatError(err);
       toast.error(errorInfo.message);
     } finally {

@@ -56,7 +56,7 @@ export const channelByUser = async (props: Props) => {
           await existingChannel.watch();
           setActiveChannel(existingChannel);
           return existingChannel;
-        } catch (watchError) {
+        } catch (watchError: unknown) {
           console.warn("Failed to watch existing channel:", watchError);
         }
       }
@@ -67,7 +67,7 @@ export const channelByUser = async (props: Props) => {
       await specificChannel.watch();
       setActiveChannel(specificChannel);
       return specificChannel;
-    } catch (error) {
+    } catch (error: unknown) {
       // Channel doesn't exist, continue to creation
     }
 
@@ -78,7 +78,7 @@ export const channelByUser = async (props: Props) => {
         image: user.image,
         role: user.role,
       });
-    } catch (upsertError) {
+    } catch (upsertError: unknown) {
       console.warn("Failed to upsert user:", upsertError);
     }
 
@@ -113,7 +113,7 @@ export const channelByUser = async (props: Props) => {
         await existingChannel.watch();
         setActiveChannel(existingChannel);
         return existingChannel;
-      } catch (watchError) {
+      } catch (watchError: unknown) {
         console.error("Failed to watch existing channel:", watchError);
       }
     }

@@ -90,7 +90,7 @@ export function useDMChannel({
 
       setChannel(dmChannel);
       return dmChannel;
-    } catch (err) {
+    } catch (err: unknown) {
       const errorInfo = analyzeChatError(err);
 
       setError(errorInfo.message || "Failed to create DM channel");

@@ -109,7 +109,7 @@ export function CommunicationSheet({
 
       await ch.watch();
       setChannel(ch);
-    } catch (e) {
+    } catch (e: unknown) {
       const info = analyzeChatError(e);
 
       setError(info.message);

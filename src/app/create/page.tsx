@@ -49,7 +49,7 @@ export default function CreateStreamUser() {
       await createStreamUser(userObject);
       setCreationOngoing(false);
       window.location.href = "/";
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to create user or token:", err);
       setError("Failed to create user or token.");
       setCreationOngoing(false);

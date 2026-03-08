@@ -14,6 +14,7 @@ import { useChannelListManager } from "@/hooks/use-channel-list-manager";
 import { usePaginatedChannels } from "@/hooks/use-paginated-channels";
 import { WorkspaceFactory } from "@/types";
 import { PlusCircleIcon } from "@phosphor-icons/react";
+import Image from "next/image";
 import { useCallback, useMemo } from "react";
 import type { Channel as StreamChannel } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
@@ -153,28 +154,45 @@ export function EnhancedSidebar({
 }: EnhancedSidebarProps) {
   return (
     <aside className="flex flex-col h-full">
-      <div className="pb-3">
-        <ChannelSearch
-          currentUserId={currentUserId}
-          setActiveChannel={setActiveChannel}
+      <div className="flex items-center gap-2.5 px-4 py-3 shrink-0">
+        <Image
+          src="/transparent-logo.png"
+          alt="Expstream"
+          width={28}
+          height={28}
+          className="shrink-0"
         />
+        <span className="text-base font-semibold tracking-tight">
+          Expstream
+        </span>
       </div>
 
-      <Separator />
+      <Separator className="shrink-0" />
 
-      <div className="h-0.5 px-2">
-        <div className="py-2">
-          <ChannelListSection
+      <div className="flex-1 overflow-y-auto">
+        <div className="pb-3 pt-2">
+          <ChannelSearch
+            currentUserId={currentUserId}
             setActiveChannel={setActiveChannel}
-            channelType={CHANNEL_TYPES.TEAM}
           />
         </div>
-        <Separator className="my-2" />
-        <div className="py-2">
-          <ChannelListSection
-            setActiveChannel={setActiveChannel}
-            channelType={CHANNEL_TYPES.MESSAGING}
-          />
+
+        <Separator />
+
+        <div className="px-2">
+          <div className="py-2">
+            <ChannelListSection
+              setActiveChannel={setActiveChannel}
+              channelType={CHANNEL_TYPES.TEAM}
+            />
+          </div>
+          <Separator className="my-2" />
+          <div className="py-2">
+            <ChannelListSection
+              setActiveChannel={setActiveChannel}
+              channelType={CHANNEL_TYPES.MESSAGING}
+            />
+          </div>
         </div>
       </div>
     </aside>

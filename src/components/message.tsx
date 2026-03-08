@@ -487,7 +487,7 @@ const EditMessageEditor = ({
         text,
       });
       clearEditingState();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[EditMessageEditor] Save error:", err);
     } finally {
       setIsSaving(false);

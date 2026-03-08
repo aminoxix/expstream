@@ -63,7 +63,7 @@ function DragDropPastePlugin({
               $createAttachmentNode(multiAttachmentData);
             $insertNodes([multiAttachmentNode]);
           });
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Failed to upload images:", error);
         }
       } else if (imageFiles.length === 1) {
@@ -74,7 +74,7 @@ function DragDropPastePlugin({
             const attachmentNode = $createAttachmentNode(attachmentData);
             $insertNodes([attachmentNode]);
           });
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Failed to upload image:", error);
         }
       }
@@ -87,7 +87,7 @@ function DragDropPastePlugin({
             const attachmentNode = $createAttachmentNode(attachmentData);
             $insertNodes([attachmentNode]);
           });
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Failed to upload file:", error);
         }
       }

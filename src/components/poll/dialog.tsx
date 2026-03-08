@@ -343,7 +343,7 @@ export const CustomPollCreationDialog = ({
       onPollCreated?.();
       form.reset();
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       const errorInfo = analyzeChatError(error);
       toast.error(
         `Failed to ${pollId ? "update" : "create"} poll: ${errorInfo.message}`,

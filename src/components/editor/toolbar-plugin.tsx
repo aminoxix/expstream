@@ -76,7 +76,7 @@ export function ToolbarPlugin({
         const attachmentNode = $createAttachmentNode(attachmentData);
         $insertNodes([attachmentNode]);
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to upload file:", error);
     }
 

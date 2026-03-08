@@ -38,7 +38,7 @@ export default function MyChat({ userId }: { userId: string }) {
           },
           params.sendOptions,
         );
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("[MyChat] Failed to send message:", err);
       }
     },

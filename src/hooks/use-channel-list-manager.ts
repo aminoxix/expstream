@@ -71,7 +71,7 @@ export function useChannelListManager({
     setIsRefreshing(true);
     try {
       await client.queryChannels(filters, sort, options);
-    } catch (error) {
+    } catch (error: unknown) {
       const errorInfo = analyzeChatError(error);
 
       // Silently handle connection errors during client initialization

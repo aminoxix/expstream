@@ -132,7 +132,7 @@ export class StreamChatManager {
           error: null,
           isTokenExpired: false,
         });
-      } catch (error) {
+      } catch (error: unknown) {
         console.warn("[StreamChatManager] Disconnect error:", error);
       } finally {
         this.connectPromise = null;
@@ -207,7 +207,7 @@ export class StreamChatManager {
         currentUser: streamUser,
         error: null,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[StreamChatManager] Connection failed:", error);
 
       const errorInfo = analyzeChatError(error);
@@ -254,7 +254,7 @@ export class StreamChatManager {
     this.subscribers.forEach((callback) => {
       try {
         callback(this.getState());
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[StreamChatManager] Subscriber error:", error);
       }
     });

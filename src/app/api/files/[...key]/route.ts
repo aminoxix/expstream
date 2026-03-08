@@ -35,7 +35,7 @@ export async function GET(
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
 
     return NextResponse.redirect(url);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[api/files] Failed:", error);
     return NextResponse.json(
       { error: "Failed to retrieve file" },

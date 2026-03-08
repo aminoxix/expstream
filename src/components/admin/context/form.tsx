@@ -188,7 +188,7 @@ export const AdminPanelForm = ({
         setActiveChannel(newChannel);
         toast.success("Channel created successfully");
         return newChannel;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[AdminPanelForm] Channel creation failed:", error);
 
         const errorInfo = analyzeChatError(error);
@@ -292,7 +292,7 @@ export const AdminPanelForm = ({
             `Removed ${membersToRemove.length} member(s) from channel`,
           );
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[AdminPanelForm] Channel update failed:", error);
 
         const errorInfo = analyzeChatError(error);
@@ -354,7 +354,7 @@ export const AdminPanelForm = ({
             };
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof z.ZodError) {
           error.issues.forEach((err) => {
             if (err.path.includes("name")) {
@@ -396,7 +396,7 @@ export const AdminPanelForm = ({
           await updateChannel(values);
         }
         onSubmit(newChannel);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[AdminPanelForm] Error:", error);
       }
     },

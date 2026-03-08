@@ -73,7 +73,7 @@ export const ChannelSearch = ({
                 });
                 externalSetActiveChannel?.(channel);
                 displayWorkspace(WorkspaceFactory.createChat());
-              } catch (error) {
+              } catch (error: unknown) {
                 const errorInfo = analyzeChatError(error);
                 console.error("Failed to create/select channel:", errorInfo);
                 toast.error(errorInfo.message);
@@ -97,7 +97,14 @@ export const ChannelSearch = ({
         displayWorkspace(WorkspaceFactory.createChat());
       }
     },
-    [allChannels, client, focused, setActiveChannel, displayWorkspace],
+    [
+      allChannels,
+      client,
+      focused,
+      setActiveChannel,
+      externalSetActiveChannel,
+      displayWorkspace,
+    ],
   );
 
   const handleKeyDownRef = useRef(handleKeyDown);
@@ -139,7 +146,7 @@ export const ChannelSearch = ({
         externalSetActiveChannel?.(channel);
         setDropdownOpen(false);
         displayWorkspace(WorkspaceFactory.createChat());
-      } catch (error) {
+      } catch (error: unknown) {
         const errorInfo = analyzeChatError(error);
         console.error("Failed to watch channel:", errorInfo);
         toast.error(`Failed to access channel: ${errorInfo.message}`);
@@ -160,7 +167,7 @@ export const ChannelSearch = ({
         setQuery("");
         setDropdownOpen(false);
         displayWorkspace(WorkspaceFactory.createChat());
-      } catch (error) {
+      } catch (error: unknown) {
         const errorInfo = analyzeChatError(error);
         console.error("Failed to create/select channel:", errorInfo);
         toast.error(errorInfo.message);
@@ -244,7 +251,8 @@ export const ChannelSearch = ({
         setTeamChannels(filteredChannels);
         setDirectChannels(otherUsers);
         setAllChannels([...filteredChannels, ...otherUsers]);
-      } catch (event) {
+      } catch (error: unknown) {
+        console.error("[channel-search] Search failed:", error);
         setQuery("");
         setDropdownOpen(false);
         displayWorkspace(WorkspaceFactory.createChat());
@@ -320,7 +328,7 @@ export const ChannelSearch = ({
       setTeamChannels(filteredChannels);
       setDirectChannels(otherUsers);
       setAllChannels([...filteredChannels, ...otherUsers]);
-    } catch (error) {
+    } catch (error: unknown) {
       const errorInfo = analyzeChatError(error);
       console.error("Failed to load default channels and users:", errorInfo);
     } finally {

@@ -48,7 +48,7 @@ export function useMessageHandler({
         );
 
         onSuccess?.(sentMessage.message as Message);
-      } catch (error) {
+      } catch (error: unknown) {
         const errorInstance =
           error instanceof Error ? error : new Error("Unknown error occurred");
 
