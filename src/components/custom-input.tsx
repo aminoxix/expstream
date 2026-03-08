@@ -246,11 +246,18 @@ function useEditorActions(editorRef: React.RefObject<LexicalEditor | null>) {
 // Attachment helpers
 // ---------------------------------------------------------------------------
 
+function getAttachmentType(mime: string): string {
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
+  return "file";
+}
+
 function getPreviewAttachments(
   uploaded: UploadedAttachment[],
 ): AttachmentEntry[] {
   return uploaded.map(({ file, key, previewUrl }) => ({
-    type: file.type.startsWith("image/") ? "image" : "file",
+    type: getAttachmentType(file.type),
     title: file.name,
     image_url: file.type.startsWith("image/") ? previewUrl : undefined,
     _uploading: key === null,
@@ -261,7 +268,7 @@ function getSendAttachments(uploaded: UploadedAttachment[]): AttachmentEntry[] {
   return uploaded
     .filter((a) => a.key !== null)
     .map(({ file, key }) => ({
-      type: file.type.startsWith("image/") ? "image" : "file",
+      type: getAttachmentType(file.type),
       title: file.name,
       image_url: file.type.startsWith("image/") ? key! : undefined,
       asset_url: key!,
@@ -462,9 +469,18 @@ export const TeamMessageInput = () => {
   const { getRootProps, getInputProps, isDragActive, isDragReject } =
     useDropzone({
       accept: {
-        "image/*": [".png", ".jpg", ".jpeg", ".gif"],
+        "image/*": [],
+        "video/*": [],
+        "audio/*": [],
         "application/pdf": [".pdf"],
-        "text/plain": [".txt"],
+        "application/msword": [".doc"],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+          [".docx"],
+        "application/vnd.ms-excel": [".xls"],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx",
+        ],
+        "text/*": [],
       },
       multiple: true,
       onDrop: uploadFiles,

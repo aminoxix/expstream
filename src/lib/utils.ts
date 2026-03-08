@@ -34,8 +34,8 @@ export const isTokenExpired = (token: string): boolean => {
 export function getFileUrl(key: string): string {
   if (!key) return "";
   if (key.startsWith("http://") || key.startsWith("https://")) return key;
-  const prefix = process.env.NEXT_PUBLIC_AWS_S3_PREFIX_URL;
-  return prefix ? `${prefix}/${key}` : key;
+  if (key.startsWith("/api/files/")) return key;
+  return `/api/files/${key}`;
 }
 
 export function getInitials(name?: string): string {

@@ -105,6 +105,11 @@ const isValidUrl = (url?: string) => {
   }
 };
 
+const resolveUrl = (raw?: string) => {
+  if (!raw) return "";
+  return isValidUrl(raw) ? raw : getFileUrl(raw);
+};
+
 const CustomAttachment = ({
   attachments,
   actionHandler,
@@ -117,6 +122,8 @@ const CustomAttachment = ({
   ) => void | Promise<void>;
 }) => {
   const isImageMime = (mime?: string) => !!mime && mime.startsWith("image/");
+  const isVideoMime = (mime?: string) => !!mime && mime.startsWith("video/");
+  const isAudioMime = (mime?: string) => !!mime && mime.startsWith("audio/");
 
   const voiceRecordings = attachments.filter(
     (att) => att.type === "voiceRecording" && att.asset_url,
@@ -130,29 +137,41 @@ const CustomAttachment = ({
 
       if (att.type === "image" && (att.image_url || att.thumb_url)) {
         const rawUrl = att.image_url || att.thumb_url;
-        if (rawUrl) {
-          const imageUrl = isValidUrl(rawUrl) ? rawUrl : getFileUrl(rawUrl);
-          images.push(imageUrl);
-        }
+        if (rawUrl) images.push(resolveUrl(rawUrl));
         return;
       }
 
       if (att.type === "file" && att.asset_url && isImageMime(att.mime_type)) {
-        const src = isValidUrl(att.asset_url)
-          ? att.asset_url
-          : getFileUrl(att.asset_url);
-        images.push(src);
+        images.push(resolveUrl(att.asset_url));
       }
     });
 
     return images.filter(Boolean);
   }, [attachments]);
 
+  const videoAttachments = attachments.filter(
+    (att) =>
+      (att.type === "video" || isVideoMime(att.mime_type)) &&
+      att.asset_url &&
+      att.type !== "voiceRecording",
+  );
+
+  const audioAttachments = attachments.filter(
+    (att) =>
+      (att.type === "audio" || isAudioMime(att.mime_type)) &&
+      att.asset_url &&
+      att.type !== "voiceRecording",
+  );
+
   const linkAttachments = attachments.filter((att) => att.og_scrape_url);
 
   const downloadableFiles = attachments.filter(
     (att) =>
-      att.type === "file" && att.asset_url && !isImageMime(att.mime_type),
+      att.type === "file" &&
+      att.asset_url &&
+      !isImageMime(att.mime_type) &&
+      !isVideoMime(att.mime_type) &&
+      !isAudioMime(att.mime_type),
   );
 
   return (
@@ -167,6 +186,40 @@ const CustomAttachment = ({
           quality="high"
           gap={4}
         />
+      )}
+
+      {videoAttachments.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {videoAttachments.map((att, i) => (
+            <video
+              key={`video-${i}`}
+              src={resolveUrl(att.asset_url)}
+              controls
+              className="max-w-2xl rounded-lg"
+              preload="metadata"
+            >
+              <track kind="captions" />
+            </video>
+          ))}
+        </div>
+      )}
+
+      {audioAttachments.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {audioAttachments.map((att, i) => (
+            <div key={`audio-${i}`} className="flex flex-col gap-1">
+              {att.title && (
+                <p className="text-sm text-muted-foreground">{att.title}</p>
+              )}
+              <audio
+                src={resolveUrl(att.asset_url)}
+                controls
+                className="max-w-md"
+                preload="metadata"
+              />
+            </div>
+          ))}
+        </div>
       )}
 
       {voiceRecordings.length > 0 && (
@@ -221,9 +274,7 @@ const CustomAttachment = ({
       {downloadableFiles.length > 0 && (
         <div className="flex flex-col gap-2">
           {downloadableFiles.map((attachment, index) => {
-            const fileUrl = isValidUrl(attachment.asset_url ?? "")
-              ? attachment.asset_url!
-              : getFileUrl(attachment.asset_url ?? "");
+            const fileUrl = resolveUrl(attachment.asset_url);
 
             return (
               <Card key={`file-${index}`} className="max-w-md">
