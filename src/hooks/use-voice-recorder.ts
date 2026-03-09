@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { t } from "try";
 
 export type VoiceRecorderState = "idle" | "recording" | "paused" | "stopped";
 
@@ -130,11 +131,8 @@ export function useVoiceRecorder(): VoiceRecorderResult {
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== "inactive"
     ) {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch (e: unknown) {
-        console.debug("[VoiceRecorder] Failed to stop recorder:", e);
-      }
+      const [ok, err] = t(() => mediaRecorderRef.current!.stop());
+      if (!ok) console.debug("[VoiceRecorder] Failed to stop recorder:", err);
     }
     mediaRecorderRef.current = null;
 
@@ -154,11 +152,11 @@ export function useVoiceRecorder(): VoiceRecorderResult {
   }, [stopDurationTracking, stopAmplitudeSampling]);
 
   const startRecording = useCallback(async () => {
-    try {
-      setError(null);
-      setRecording(undefined);
-      cancelledRef.current = false;
+    setError(null);
+    setRecording(undefined);
+    cancelledRef.current = false;
 
+    const [ok, err] = await t(async () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -229,7 +227,9 @@ export function useVoiceRecorder(): VoiceRecorderResult {
       setState("recording");
       startDurationTracking();
       startAmplitudeSampling();
-    } catch (err: unknown) {
+    });
+
+    if (!ok) {
       const errorName = err instanceof Error ? err.name : "";
       if (
         errorName === "NotAllowedError" ||

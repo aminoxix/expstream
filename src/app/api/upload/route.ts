@@ -1,6 +1,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
+import { t } from "try";
 
 function getS3Client() {
   const region = process.env.AWS_S3_REGION;
@@ -33,7 +34,7 @@ function isAllowedMimeType(mimeType: string): boolean {
 }
 
 export async function POST(request: Request) {
-  try {
+  const [ok, error, result] = await t(async () => {
     const body = await request.json();
     const { content_type, extension, upload_type = "chat_attachments" } = body;
 
@@ -71,11 +72,15 @@ export async function POST(request: Request) {
     const url = await getSignedUrl(s3, command, { expiresIn: 300 });
 
     return NextResponse.json({ key, url });
-  } catch (error: unknown) {
+  });
+
+  if (!ok) {
     console.error("[api/upload] Failed:", error);
     return NextResponse.json(
       { error: "Failed to generate upload URL" },
       { status: 500 },
     );
   }
+
+  return result;
 }

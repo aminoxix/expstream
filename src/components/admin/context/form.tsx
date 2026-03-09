@@ -6,8 +6,8 @@ import {
   generateDMChannelId,
   generateTeamChannelId,
 } from "@/utils/channel-id-generator";
-import { analyzeChatError } from "@/utils/chat-error-handler";
 import { getChannelDisplayName } from "@/utils/helpers";
+import { tryChatAction } from "@/utils/try-chat-action";
 import {
   ChangeEventHandler,
   createContext,
@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { Channel as StreamChannel } from "stream-chat";
 import { useChatContext } from "stream-chat-react";
+import { t } from "try";
 import { z } from "zod";
 
 type ChannelType = "team" | "messaging";
@@ -161,52 +162,48 @@ export const AdminPanelForm = ({
         return undefined;
       }
 
-      try {
-        let channelId: string | undefined;
-        if (createChannelType === "team" && name?.trim()) {
-          channelId = generateTeamChannelId(name.trim());
-        } else if (createChannelType === "messaging" && members.length === 2) {
-          channelId = generateDMChannelId(members);
-        }
-
-        const channelData: {
-          name?: string;
-          members?: string[];
-        } = {
-          members,
-        };
-
-        if (name && name.trim()) {
-          channelData.name = name.trim();
-        }
-
-        const newChannel = channelId
-          ? client.channel(createChannelType, channelId, channelData)
-          : client.channel(createChannelType, channelData);
-
-        await newChannel.watch();
-        setActiveChannel(newChannel);
-        toast.success("Channel created successfully");
-        return newChannel;
-      } catch (error: unknown) {
-        console.error("[AdminPanelForm] Channel creation failed:", error);
-
-        const errorInfo = analyzeChatError(error);
-
-        if (
-          errorInfo.action === "retry" &&
-          errorInfo.message.includes("2 members")
-        ) {
-          setErrors((prev) => ({
-            ...prev,
-            members: errorInfo.message,
-          }));
-        } else {
-          toast.error(errorInfo.message);
-        }
-
-        throw error;
+      let channelId: string | undefined;
+      if (createChannelType === "team" && name?.trim()) {
+        channelId = generateTeamChannelId(name.trim());
+      } else if (createChannelType === "messaging" && members.length === 2) {
+        channelId = generateDMChannelId(members);
       }
+
+      const channelData: {
+        name?: string;
+        members?: string[];
+      } = {
+        members,
+      };
+
+      if (name && name.trim()) {
+        channelData.name = name.trim();
+      }
+
+      const newChannel = channelId
+        ? client.channel(createChannelType, channelId, channelData)
+        : client.channel(createChannelType, channelData);
+
+      const [ok, errorInfo] = await tryChatAction(() => newChannel.watch(), {
+        silent: true,
+        onError: (info) => {
+          console.error(
+            "[AdminPanelForm] Channel creation failed:",
+            info.originalError,
+          );
+          if (info.action === "retry" && info.message.includes("2 members")) {
+            setErrors((prev) => ({ ...prev, members: info.message }));
+          } else {
+            toast.error(info.message);
+          }
+        },
+      });
+
+      if (!ok) return undefined;
+
+      setActiveChannel(newChannel);
+      toast.success("Channel created successfully");
+      return newChannel;
     },
     [createChannelType, setActiveChannel, client, setErrors],
   );
@@ -227,90 +224,88 @@ export const AdminPanelForm = ({
         return;
       }
 
-      try {
-        const trimmedName = name?.trim();
-        const currentName = getChannelDisplayName(channel);
+      const trimmedName = name?.trim();
+      const currentName = getChannelDisplayName(channel);
 
-        const currentMembers = originalMembers;
-        const newMembers = members || [];
-        const membersToAdd = newMembers.filter(
-          (member) => !currentMembers.includes(member),
+      const currentMembers = originalMembers;
+      const newMembers = members || [];
+      const membersToAdd = newMembers.filter(
+        (member) => !currentMembers.includes(member),
+      );
+      const membersToRemove = currentMembers.filter(
+        (member) => !newMembers.includes(member),
+      );
+
+      const nameChanged = trimmedName && trimmedName !== currentName;
+      const currentUserName = client.user?.name || client.user?.id || "Someone";
+
+      const getMemberNames = async (memberIds: string[]) => {
+        if (memberIds.length === 0) return [];
+        const [ok, , result] = await t(() =>
+          client.queryUsers({ id: { $in: memberIds } }),
         );
-        const membersToRemove = currentMembers.filter(
-          (member) => !newMembers.includes(member),
-        );
+        return ok ? result.users.map((u) => u.name || u.id) : memberIds;
+      };
 
-        const nameChanged = trimmedName && trimmedName !== currentName;
-        const currentUserName =
-          client.user?.name || client.user?.id || "Someone";
-
-        const getMemberNames = async (memberIds: string[]) => {
-          if (memberIds.length === 0) return [];
-          try {
-            const { users } = await client.queryUsers({
-              id: { $in: memberIds },
-            });
-            return users.map((u) => u.name || u.id);
-          } catch {
-            return memberIds;
+      const [ok] = await tryChatAction(
+        async () => {
+          if (nameChanged) {
+            await channel.update(
+              { name: trimmedName },
+              {
+                text: `${currentUserName} changed the channel name to ${trimmedName}`,
+              },
+            );
+            await client.queryChannels(
+              {
+                id: channel.id,
+                type: channel.type,
+                members: { $in: [client.user?.id ?? ""] },
+              },
+              { last_message_at: -1, updated_at: -1 },
+              { state: true, watch: true },
+            );
+            toast.success("Channel name updated");
           }
-        };
 
-        if (nameChanged) {
-          await channel.update(
-            { name: trimmedName },
-            {
-              text: `${currentUserName} changed the channel name to ${trimmedName}`,
-            },
-          );
-          await client.queryChannels(
-            {
-              id: channel.id,
-              type: channel.type,
-              members: { $in: [client.user?.id ?? ""] },
-            },
-            { last_message_at: -1, updated_at: -1 },
-            { state: true, watch: true },
-          );
-          toast.success("Channel name updated");
-        }
+          if (membersToAdd.length > 0) {
+            const addedNames = await getMemberNames(membersToAdd);
+            await channel.addMembers(membersToAdd, {
+              text: `${currentUserName} added ${addedNames.join(", ")}`,
+            });
+            toast.success(`Added ${membersToAdd.length} member(s) to channel`);
+          }
 
-        if (membersToAdd.length > 0) {
-          const addedNames = await getMemberNames(membersToAdd);
-          await channel.addMembers(membersToAdd, {
-            text: `${currentUserName} added ${addedNames.join(", ")}`,
-          });
-          toast.success(`Added ${membersToAdd.length} member(s) to channel`);
-        }
+          if (membersToRemove.length > 0) {
+            const removedNames = await getMemberNames(membersToRemove);
+            await channel.removeMembers(membersToRemove, {
+              text: `${currentUserName} removed ${removedNames.join(", ")}`,
+            });
+            toast.success(
+              `Removed ${membersToRemove.length} member(s) from channel`,
+            );
+          }
+        },
+        {
+          silent: true,
+          onError: (info) => {
+            console.error(
+              "[AdminPanelForm] Channel update failed:",
+              info.originalError,
+            );
+            if (
+              info.action === "contact_support" &&
+              info.message.includes("permission")
+            ) {
+              setErrors((prev) => ({ ...prev, permissions: info.message }));
+            } else {
+              toast.error(info.message);
+            }
+          },
+        },
+      );
 
-        if (membersToRemove.length > 0) {
-          const removedNames = await getMemberNames(membersToRemove);
-          await channel.removeMembers(membersToRemove, {
-            text: `${currentUserName} removed ${removedNames.join(", ")}`,
-          });
-          toast.success(
-            `Removed ${membersToRemove.length} member(s) from channel`,
-          );
-        }
-      } catch (error: unknown) {
-        console.error("[AdminPanelForm] Channel update failed:", error);
-
-        const errorInfo = analyzeChatError(error);
-
-        if (
-          errorInfo.action === "contact_support" &&
-          errorInfo.message.includes("permission")
-        ) {
-          setErrors((prev) => ({
-            ...prev,
-            permissions: errorInfo.message,
-          }));
-        } else {
-          toast.error(errorInfo.message);
-        }
-
-        throw error;
-      }
+      if (!ok) return;
     },
     [channel, canUpdateChannel, client, setErrors, originalMembers],
   );
@@ -327,43 +322,38 @@ export const AdminPanelForm = ({
     }): FormErrors | null => {
       let errors: FormErrors = { name: null, members: null, permissions: null };
 
-      try {
-        const isTeamChannel =
-          action === "create"
-            ? createChannelType === "team"
-            : channel?.type === "team";
+      const isTeamChannel =
+        action === "create"
+          ? createChannelType === "team"
+          : channel?.type === "team";
 
-        if (isTeamChannel) {
-          TeamFormValuesSchema.parse(values);
-        } else {
-          FormValuesSchema.parse(values);
-        }
+      const schema = isTeamChannel ? TeamFormValuesSchema : FormValuesSchema;
+      const [ok, parseError] = t(() => schema.parse(values));
 
-        if (action === "update") {
-          const membersChanged =
-            JSON.stringify([...values.members].sort()) !==
-            JSON.stringify([...originalMembers].sort());
-          const nameChanged = values.name !== defaultValues.name;
-
-          if (!nameChanged && !membersChanged) {
-            errors = {
-              name: null,
-              members:
-                "Please change the name or modify members to update the channel",
-              permissions: null,
-            };
+      if (!ok && parseError instanceof z.ZodError) {
+        parseError.issues.forEach((err) => {
+          if (err.path.includes("name")) {
+            errors.name = err.message;
           }
-        }
-      } catch (error: unknown) {
-        if (error instanceof z.ZodError) {
-          error.issues.forEach((err) => {
-            if (err.path.includes("name")) {
-              errors.name = err.message;
-            }
-            if (err.path.includes("members")) {
-              errors.members = err.message;
-            }
-          });
+          if (err.path.includes("members")) {
+            errors.members = err.message;
+          }
+        });
+      }
+
+      if (ok && action === "update") {
+        const membersChanged =
+          JSON.stringify([...values.members].sort()) !==
+          JSON.stringify([...originalMembers].sort());
+        const nameChanged = values.name !== defaultValues.name;
+
+        if (!nameChanged && !membersChanged) {
+          errors = {
+            name: null,
+            members:
+              "Please change the name or modify members to update the channel",
+            permissions: null,
+          };
         }
       }
 
@@ -387,18 +377,14 @@ export const AdminPanelForm = ({
         return;
       }
 
-      try {
-        let newChannel: StreamChannel | undefined;
-        if (action === "create") {
-          newChannel = await createChannel(values);
-        }
-        if (action === "update") {
-          await updateChannel(values);
-        }
-        onSubmit(newChannel);
-      } catch (error: unknown) {
-        console.error("[AdminPanelForm] Error:", error);
+      let newChannel: StreamChannel | undefined;
+      if (action === "create") {
+        newChannel = await createChannel(values);
       }
+      if (action === "update") {
+        await updateChannel(values);
+      }
+      onSubmit(newChannel);
     },
     [
       action,

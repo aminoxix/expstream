@@ -5,6 +5,7 @@ import type {
   SendMessageOptions,
   Channel as StreamChannel,
 } from "stream-chat";
+import { t } from "try";
 
 export interface MessageSubmissionParams {
   cid: string;
@@ -34,29 +35,34 @@ export function useMessageHandler({
   const submitMessage = useCallback(
     async (params: MessageSubmissionParams) => {
       setIsSubmitting(true);
-      try {
-        if (!channel) {
-          throw new Error("No active channel selected");
-        }
 
-        const sentMessage = await channel.sendMessage(
+      if (!channel) {
+        const err = new Error("No active channel selected");
+        onError?.(err);
+        setIsSubmitting(false);
+        throw err;
+      }
+
+      const [ok, error, sentMessage] = await t(() =>
+        channel.sendMessage(
           {
             text: params.localMessage.text,
             user_id: params.localMessage.user_id,
           },
           params.sendOptions,
-        );
+        ),
+      );
 
-        onSuccess?.(sentMessage.message as Message);
-      } catch (error: unknown) {
+      setIsSubmitting(false);
+
+      if (!ok) {
         const errorInstance =
           error instanceof Error ? error : new Error("Unknown error occurred");
-
         onError?.(errorInstance);
         throw errorInstance;
-      } finally {
-        setIsSubmitting(false);
       }
+
+      onSuccess?.(sentMessage.message as Message);
     },
     [channel, onError, onSuccess],
   );

@@ -70,7 +70,6 @@ import {
   isOnlyEmojis,
   MESSAGE_ACTIONS,
   MessageActions,
-  MessageDeleted,
   MessageErrorIcon,
   MessageRepliesCountButton,
   MessageStatusProps,
@@ -537,6 +536,15 @@ interface TeamMessageProps {
   showPollDeleteButton?: boolean;
 }
 
+const DeletedMessage = () => (
+  <div className="my-2 flex items-center justify-center">
+    <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-4 py-2 text-sm text-gray-400 italic">
+      <TrashIcon className="size-4" />
+      <span>This message was deleted</span>
+    </div>
+  </div>
+);
+
 export const TeamMessage = (
   props?: TeamMessageProps & Partial<MessageContextValue>,
 ) => {
@@ -609,9 +617,7 @@ export const TeamMessage = (
     [message, groupStyles, threadList],
   );
 
-  if (message.deleted_at) {
-    return <MessageDeleted message={message} />;
-  }
+  if (message.deleted_at) return <DeletedMessage />;
 
   if (editing) {
     if (!client?.userID) {
@@ -1076,7 +1082,6 @@ export const AnnouncementMessage = (props: {
   } = useMessageContext("AnnouncementMessage");
   const message = baseMessage as LocalMessage;
   const { t, userLanguage } = useTranslationContext("AnnouncementMessage");
-  const { client } = useChatContext();
   const buttonRef = useRef<ComponentRef<"button">>(null);
   const isEventAnnouncement = message.event_type?.includes("event");
 
@@ -1089,9 +1094,7 @@ export const AnnouncementMessage = (props: {
   const messageActions = getMessageActions();
   const canReact = messageActions.indexOf(MESSAGE_ACTIONS.react) > -1;
 
-  if (message.deleted_at) {
-    return <MessageDeleted message={message} />;
-  }
+  if (message.deleted_at) return <DeletedMessage />;
 
   const messageTextToRender =
     message.i18n?.[`${userLanguage}_text` as `${string}_text`] || message.text;

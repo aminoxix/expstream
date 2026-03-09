@@ -1,6 +1,7 @@
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextRequest, NextResponse } from "next/server";
+import { t } from "try";
 
 function getS3Client() {
   const region = process.env.AWS_S3_REGION;
@@ -29,17 +30,20 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  try {
-    const s3 = getS3Client();
-    const command = new GetObjectCommand({ Bucket: bucket, Key: s3Key });
-    const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+  const s3 = getS3Client();
+  const command = new GetObjectCommand({ Bucket: bucket, Key: s3Key });
 
-    return NextResponse.redirect(url);
-  } catch (error: unknown) {
+  const [ok, error, url] = await t(() =>
+    getSignedUrl(s3, command, { expiresIn: 3600 }),
+  );
+
+  if (!ok) {
     console.error("[api/files] Failed:", error);
     return NextResponse.json(
       { error: "Failed to retrieve file" },
       { status: 500 },
     );
   }
+
+  return NextResponse.redirect(url);
 }

@@ -6,6 +6,7 @@ import {
   type StreamChatUserInfo,
 } from "@/utils/token-helper";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { t } from "try";
 import { useStreamChat } from "./use-stream-chat";
 
 export interface AuthContextLike {
@@ -44,32 +45,35 @@ export function useIntegratedStreamChat({
 
   useEffect(() => {
     const connectUser = async () => {
-      try {
-        if (!autoConnect || !auth?.user) {
-          setIsSetupComplete(false);
-          return;
-        }
+      if (!autoConnect || !auth?.user) {
+        setIsSetupComplete(false);
+        return;
+      }
 
-        if (
-          streamChat.currentUser?.id === auth.user.user_id &&
-          streamChat.isConnected
-        ) {
-          setIsSetupComplete(true);
-          return;
-        }
-
-        const tokenProvider = resolveTokenProviderRef.current();
-        const streamUser = formatStreamChatUser(auth.user);
-
-        await streamChat.connect(streamUser, tokenProvider);
-
-        setSetupError(null);
+      if (
+        streamChat.currentUser?.id === auth.user.user_id &&
+        streamChat.isConnected
+      ) {
         setIsSetupComplete(true);
-      } catch (error: unknown) {
+        return;
+      }
+
+      const tokenProvider = resolveTokenProviderRef.current();
+      const streamUser = formatStreamChatUser(auth.user);
+
+      const [ok, error] = await t(() =>
+        streamChat.connect(streamUser, tokenProvider),
+      );
+
+      if (!ok) {
         console.error("[useIntegratedStreamChat] Setup failed:", error);
         setSetupError(error instanceof Error ? error.message : "Setup failed");
         setIsSetupComplete(false);
+        return;
       }
+
+      setSetupError(null);
+      setIsSetupComplete(true);
     };
 
     connectUser();
@@ -91,18 +95,22 @@ export function useIntegratedStreamChat({
   const retry = useCallback(async () => {
     if (!auth?.user) return;
 
-    try {
-      setSetupError(null);
+    setSetupError(null);
 
-      const tokenProvider = resolveTokenProviderRef.current();
-      const streamUser = formatStreamChatUser(auth.user);
+    const tokenProvider = resolveTokenProviderRef.current();
+    const streamUser = formatStreamChatUser(auth.user);
 
-      await streamChat.retry(streamUser, tokenProvider);
-      setIsSetupComplete(true);
-    } catch (error: unknown) {
+    const [ok, error] = await t(() =>
+      streamChat.retry(streamUser, tokenProvider),
+    );
+
+    if (!ok) {
       console.error("[useIntegratedStreamChat] Retry failed:", error);
       setSetupError(error instanceof Error ? error.message : "Retry failed");
+      return;
     }
+
+    setIsSetupComplete(true);
   }, [auth, streamChat]);
 
   return {

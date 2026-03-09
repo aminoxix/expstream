@@ -1,6 +1,7 @@
 "use client";
 
 import type { StreamChat, User as StreamUser } from "stream-chat";
+import { t } from "try";
 import { analyzeChatError } from "./chat-error-handler";
 
 export interface StreamChatState {
@@ -121,7 +122,7 @@ export class StreamChatManager {
 
   async disconnect(): Promise<void> {
     const doDisconnect = async () => {
-      try {
+      const [ok, error] = await t(async () => {
         if (this.client?.userID) {
           await this.client.disconnectUser();
         }
@@ -132,13 +133,15 @@ export class StreamChatManager {
           error: null,
           isTokenExpired: false,
         });
-      } catch (error: unknown) {
+      });
+
+      if (!ok) {
         console.warn("[StreamChatManager] Disconnect error:", error);
-      } finally {
-        this.connectPromise = null;
-        this.pendingUserId = null;
-        this.disconnectPromise = null;
       }
+
+      this.connectPromise = null;
+      this.pendingUserId = null;
+      this.disconnectPromise = null;
     };
 
     this.disconnectPromise = doDisconnect();
@@ -177,22 +180,22 @@ export class StreamChatManager {
     user: StreamChatUser,
     tokenProvider: TokenProvider,
   ): Promise<void> {
-    try {
-      this.updateState({
-        connectionState: "connecting",
-        error: null,
-        isTokenExpired: false,
-      });
+    this.updateState({
+      connectionState: "connecting",
+      error: null,
+      isTokenExpired: false,
+    });
 
-      const client = this.getClient();
+    const client = this.getClient();
 
-      const streamUser: StreamChatUser = {
-        id: user.id,
-        name: user.name,
-        image: user.image,
-        email: user.email,
-      };
+    const streamUser: StreamChatUser = {
+      id: user.id,
+      name: user.name,
+      image: user.image,
+      email: user.email,
+    };
 
+    const [ok, error] = await t(async () => {
       if (client.userID === user.id) {
         // Already connected as this user on the client level
       } else {
@@ -201,13 +204,12 @@ export class StreamChatManager {
         }
         await client.connectUser(streamUser, tokenProvider);
       }
+    });
 
-      this.updateState({
-        connectionState: "connected",
-        currentUser: streamUser,
-        error: null,
-      });
-    } catch (error: unknown) {
+    this.connectPromise = null;
+    this.pendingUserId = null;
+
+    if (!ok) {
       console.error("[StreamChatManager] Connection failed:", error);
 
       const errorInfo = analyzeChatError(error);
@@ -219,10 +221,13 @@ export class StreamChatManager {
       });
 
       throw error;
-    } finally {
-      this.connectPromise = null;
-      this.pendingUserId = null;
     }
+
+    this.updateState({
+      connectionState: "connected",
+      currentUser: streamUser,
+      error: null,
+    });
   }
 
   private setupClientListeners(): void {
@@ -252,9 +257,8 @@ export class StreamChatManager {
     this.state = { ...this.state, ...updates };
 
     this.subscribers.forEach((callback) => {
-      try {
-        callback(this.getState());
-      } catch (error: unknown) {
+      const [ok, error] = t(() => callback(this.getState()));
+      if (!ok) {
         console.error("[StreamChatManager] Subscriber error:", error);
       }
     });

@@ -11,6 +11,7 @@ import type {
 } from "stream-chat";
 import { Chat, type MessageInputProps } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
+import { t } from "try";
 import ChannelContainer from "./channel-container";
 import { ChatEmptyState } from "./chat-empty-state";
 import { ResponsiveChatLayout } from "./responsive-chat-layout";
@@ -27,19 +28,25 @@ export default function MyChat({ userId }: { userId: string }) {
       message: Message;
       sendOptions: SendMessageOptions;
     }) => {
-      try {
-        if (!channel) {
-          throw new Error("No active channel selected");
-        }
-        await channel.sendMessage(
+      if (!channel) {
+        console.error(
+          "[MyChat] Failed to send message: No active channel selected",
+        );
+        return;
+      }
+
+      const [ok, error] = await t(() =>
+        channel.sendMessage(
           {
             text: params.localMessage.text,
             user_id: params.localMessage.user_id,
           },
           params.sendOptions,
-        );
-      } catch (err: unknown) {
-        console.error("[MyChat] Failed to send message:", err);
+        ),
+      );
+
+      if (!ok) {
+        console.error("[MyChat] Failed to send message:", error);
       }
     },
     [channel],

@@ -52,6 +52,7 @@
     "stream-chat": "^9.14.0",
     "stream-chat-react": "^13.3.0",
     "tailwind-merge": "^3.3.1",
+    "try": "^1.0.3",
     "yet-another-react-lightbox": "^3.29.1",
     "zod": "^4.0.17"
   },

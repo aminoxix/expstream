@@ -17,7 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { analyzeChatError } from "@/utils/chat-error-handler";
+import { tryChatAction } from "@/utils/try-chat-action";
 import {
   closestCenter,
   DndContext,
@@ -233,122 +233,129 @@ export const CustomPollCreationDialog = ({
   };
 
   const onSubmit = form.handleSubmit(async (data: PollFormValues) => {
-    try {
-      if (!data.name?.trim()) {
-        form.setError("name", {
-          type: "required",
-          message: "Poll question is required",
-        });
-        return;
-      }
-
-      const validOptions = data.options.filter((option) => option.text.trim());
-      if (validOptions.length < 2) {
-        form.setError("options", {
-          type: "min",
-          message: "At least two options are required",
-        });
-        return;
-      }
-
-      const optionTexts = validOptions.map((option) =>
-        option.text.trim().toLowerCase(),
-      );
-      const duplicates = optionTexts.filter(
-        (text, index) => optionTexts.indexOf(text) !== index,
-      );
-      if (duplicates.length > 0) {
-        form.setError("options", {
-          type: "identical",
-          message:
-            "Identical options detected. Please modify duplicate options.",
-        });
-        return;
-      }
-
-      if (!client) {
-        toast.error("Chat client not available. Please try again.");
-        return;
-      }
-
-      if (!channel) {
-        toast.error("Channel not available. Please try again.");
-        return;
-      }
-
-      const pollData = {
-        name: data.name.trim(),
-        description: data.description?.trim() || "",
-        options: validOptions,
-        allow_answers: data.allow_answers,
-        allow_user_suggested_options: data.allow_user_suggested_options,
-        enforce_unique_vote: data.enforce_unique_vote,
-        voting_visibility:
-          data.voting_visibility === "anonymous"
-            ? VotingVisibility.anonymous
-            : VotingVisibility.public,
-      };
-
-      if (pollId) {
-        const pollInstance = client.polls.fromState(pollId);
-
-        const { options, ...pollMetadata } = pollData;
-        const updatedPoll = await pollInstance?.partialUpdate({
-          set: pollMetadata,
-        });
-
-        if (!updatedPoll?.poll?.id) {
-          throw new Error("Failed to update poll - no poll ID returned");
-        }
-
-        if (channel) {
-          const messages = channel.state.messages;
-          const pollMessage = messages.find((msg) => msg.poll_id === pollId);
-
-          if (pollMessage) {
-            const updatedText = [
-              `New Poll: **${data.name || "Untitled"}**`,
-              data.description ? `\n${data.description}` : "",
-            ].join("\n");
-
-            await client.updateMessage({
-              id: pollMessage.id,
-              text: updatedText,
-            });
-          }
-        }
-
-        toast.success(
-          "Poll updated successfully (options cannot be modified once created)",
-        );
-      } else {
-        const poll = await client.polls.createPoll(pollData);
-
-        if (!poll?.id) {
-          throw new Error("Failed to create poll - no poll ID returned");
-        }
-
-        const textParts = [
-          `New Poll: **${data.name || "Untitled"}**`,
-          data.description ? `\n${data.description}` : "",
-        ].join("\n");
-
-        await channel.sendMessage({
-          text: textParts,
-          poll_id: poll.id,
-        });
-
-        toast.success("Poll created successfully");
-      }
-      onPollCreated?.();
-      form.reset();
-      onClose();
-    } catch (error: unknown) {
-      const errorInfo = analyzeChatError(error);
-      toast.error(
-        `Failed to ${pollId ? "update" : "create"} poll: ${errorInfo.message}`,
-      );
+    if (!data.name?.trim()) {
+      form.setError("name", {
+        type: "required",
+        message: "Poll question is required",
+      });
+      return;
     }
+
+    const validOptions = data.options.filter((option) => option.text.trim());
+    if (validOptions.length < 2) {
+      form.setError("options", {
+        type: "min",
+        message: "At least two options are required",
+      });
+      return;
+    }
+
+    const optionTexts = validOptions.map((option) =>
+      option.text.trim().toLowerCase(),
+    );
+    const duplicates = optionTexts.filter(
+      (text, index) => optionTexts.indexOf(text) !== index,
+    );
+    if (duplicates.length > 0) {
+      form.setError("options", {
+        type: "identical",
+        message: "Identical options detected. Please modify duplicate options.",
+      });
+      return;
+    }
+
+    if (!client) {
+      toast.error("Chat client not available. Please try again.");
+      return;
+    }
+
+    if (!channel) {
+      toast.error("Channel not available. Please try again.");
+      return;
+    }
+
+    const pollData = {
+      name: data.name.trim(),
+      description: data.description?.trim() || "",
+      options: validOptions,
+      allow_answers: data.allow_answers,
+      allow_user_suggested_options: data.allow_user_suggested_options,
+      enforce_unique_vote: data.enforce_unique_vote,
+      voting_visibility:
+        data.voting_visibility === "anonymous"
+          ? VotingVisibility.anonymous
+          : VotingVisibility.public,
+    };
+
+    const [ok] = await tryChatAction(
+      async () => {
+        if (pollId) {
+          const pollInstance = client.polls.fromState(pollId);
+
+          const { options, ...pollMetadata } = pollData;
+          const updatedPoll = await pollInstance?.partialUpdate({
+            set: pollMetadata,
+          });
+
+          if (!updatedPoll?.poll?.id) {
+            throw new Error("Failed to update poll - no poll ID returned");
+          }
+
+          if (channel) {
+            const messages = channel.state.messages;
+            const pollMessage = messages.find((msg) => msg.poll_id === pollId);
+
+            if (pollMessage) {
+              const updatedText = [
+                `New Poll: **${data.name || "Untitled"}**`,
+                data.description ? `\n${data.description}` : "",
+              ].join("\n");
+
+              await client.updateMessage({
+                id: pollMessage.id,
+                text: updatedText,
+              });
+            }
+          }
+
+          toast.success(
+            "Poll updated successfully (options cannot be modified once created)",
+          );
+        } else {
+          const poll = await client.polls.createPoll(pollData);
+
+          if (!poll?.id) {
+            throw new Error("Failed to create poll - no poll ID returned");
+          }
+
+          const textParts = [
+            `New Poll: **${data.name || "Untitled"}**`,
+            data.description ? `\n${data.description}` : "",
+          ].join("\n");
+
+          await channel.sendMessage({
+            text: textParts,
+            poll_id: poll.id,
+          });
+
+          toast.success("Poll created successfully");
+        }
+      },
+      {
+        silent: true,
+        onError: (info) => {
+          toast.error(
+            `Failed to ${pollId ? "update" : "create"} poll: ${info.message}`,
+          );
+        },
+      },
+    );
+
+    if (!ok) return;
+
+    onPollCreated?.();
+    form.reset();
+    onClose();
   });
 
   return (
